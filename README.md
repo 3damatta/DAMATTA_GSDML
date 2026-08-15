@@ -36,9 +36,11 @@ http://<IP_DO_RASPBERRY_PI>:8000
 
 ---
 
-## 🛠️ Importação do Arquivo GSDML no CODESYS
+## 🛠️ Importação do Arquivo GSDML no CODESYS / MasterTool IEC XE (Altus NX325)
 
-1. Abra o **CODESYS Development System**.
+> 📘 **Guia Dedicado Altus MasterTool:** Veja o [Tutorial Completo para MasterTool IEC XE & CLP Altus NX325](TUTORIAL_MASTERTOOL_NEXUS325.md).
+
+1. Abra o **CODESYS** ou **MasterTool IEC XE**.
 2. Vá no menu **Tools** $\rightarrow$ **Device Repository...**
 3. Clique em **Install...** e selecione o arquivo:
    `gsdml/GSDML-V2.42-Custom-VisionDevice-20260814.xml`
