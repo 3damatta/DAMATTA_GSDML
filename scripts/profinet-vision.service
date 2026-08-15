@@ -1,0 +1,15 @@
+[Unit]
+Description=DAMATTA PROFINET Vision System Daemon & Web Interface
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/DAMATTA_GSDML
+ExecStart=/opt/DAMATTA_GSDML/venv/bin/python /opt/DAMATTA_GSDML/web_app/backend/main.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

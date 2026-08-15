@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ISO15745Profile xmlns="http://www.profibus.com/GSDML/2.42/Schema"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://www.profibus.com/GSDML/2.42/Schema GSDML-Schm-v2.42.xsd">
+  <ProfileHeader>
+    <ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
+    <ProfileRevision>1.00</ProfileRevision>
+    <ProfileName>Raspberry Pi Industrial Vision System</ProfileName>
+    <ProfileSource>DAMATTA Automation</ProfileSource>
+    <ProfileClassID>Device</ProfileClassID>
+    <ISO15745Reference>
+      <ISO15745Part>1</ISO15745Part>
+      <ISO15745Edition>1</ISO15745Edition>
+      <ProfileTechnology>PROFINET</ProfileTechnology>
+    </ISO15745Reference>
+  </ProfileHeader>
+
+  <ProfileBody>
+    <DeviceIdentity VendorID="0x0600" DeviceID="0x0001">
+      <InfoText TextId="IDT_INFO_DEVICE"/>
+      <VendorName Value="DAMATTA Automation"/>
+    </DeviceIdentity>
+
+    <DeviceFunction>
+      <Family MainFamily="I/O" ProductFamily="Vision Systems"/>
+    </DeviceFunction>
+
+    <ApplicationProcess>
+      <DeviceAccessPointList>
+        <DeviceAccessPointItem ID="DAP_RPI_VISION" PNIO_Version="V2.42"
+                               PhysicalInterface="Industrial Ethernet"
+                               MinDeviceInterval="32" ImplementationType="p-net OpenSource">
+          <ModuleInfo>
+            <Name TextId="IDT_DAP_NAME"/>
+            <InfoText TextId="IDT_DAP_INFO"/>
+          </ModuleInfo>
+          
+          <SubslotList>
+            <SubslotItem SubslotNumber="1" TextId="IDT_SUBSLOT_INPUTS"/>
+            <SubslotItem SubslotNumber="2" TextId="IDT_SUBSLOT_OUTPUTS"/>
+          </SubslotList>
+          
+          <IOConfigData MaxInputLength="20" MaxOutputLength="6"/>
+        </DeviceAccessPointItem>
+      </DeviceAccessPointList>
+
+      <ModuleList>
+        <!-- Módulo de Entradas (20 Bytes Visão -> CODESYS) -->
+        <ModuleItem ID="MOD_IN_20BYTES">
+          <ModuleInfo>
+            <Name TextId="IDT_MOD_IN_NAME"/>
+            <InfoText TextId="IDT_MOD_IN_INFO"/>
+          </ModuleInfo>
+          <VirtualSubmoduleList>
+            <VirtualSubmoduleItem ID="SUB_IN_20BYTES" SubmoduleIdentNumber="0x00000001">
+              <IOData>
+                <Input>
+                  <DataItem DataType="Unsigned16" TextId="IDT_STATUS_FLAGS"/>
+                  <DataItem DataType="Unsigned16" TextId="IDT_CLASS_ID"/>
+                  <DataItem DataType="Unsigned16" TextId="IDT_OBJECT_COUNT"/>
+                  <DataItem DataType="Float32" TextId="IDT_POS_X_MM"/>
+                  <DataItem DataType="Float32" TextId="IDT_POS_Y_MM"/>
+                  <DataItem DataType="Float32" TextId="IDT_ANGLE_DEG"/>
+                  <DataItem DataType="Unsigned16" TextId="IDT_ACTIVE_RECIPE"/>
+                </Input>
+              </IOData>
+            </VirtualSubmoduleItem>
+          </VirtualSubmoduleList>
+        </ModuleItem>
+
+        <!-- Módulo de Saídas (6 Bytes CODESYS -> Visão) -->
+        <ModuleItem ID="MOD_OUT_6BYTES">
+          <ModuleInfo>
+            <Name TextId="IDT_MOD_OUT_NAME"/>
+            <InfoText TextId="IDT_MOD_OUT_INFO"/>
+          </ModuleInfo>
+          <VirtualSubmoduleList>
+            <VirtualSubmoduleItem ID="SUB_OUT_6BYTES" SubmoduleIdentNumber="0x00000002">
+              <IOData>
+                <Output>
+                  <DataItem DataType="Unsigned8" TextId="IDT_TRIGGER_CMD"/>
+                  <DataItem DataType="Unsigned8" TextId="IDT_RECIPE_CMD"/>
+                  <DataItem DataType="Unsigned8" TextId="IDT_MODE_CMD"/>
+                  <DataItem DataType="Unsigned8" TextId="IDT_RESET_FAULT"/>
+                  <DataItem DataType="Unsigned16" TextId="IDT_RESERVED"/>
+                </Output>
+              </IOData>
+            </VirtualSubmoduleItem>
+          </VirtualSubmoduleList>
+        </ModuleItem>
+      </ModuleList>
+
+      <ExternalTextList>
+        <PrimaryLanguage>
+          <Text TextId="IDT_INFO_DEVICE" Value="Dispositivo de Visão Industrial PROFINET IO-Device para Raspberry Pi"/>
+          <Text TextId="IDT_DAP_NAME" Value="Raspberry Pi Vision DAP"/>
+          <Text TextId="IDT_DAP_INFO" Value="Device Access Point para p-net PROFINET RT"/>
+          <Text TextId="IDT_SUBSLOT_INPUTS" Value="Subslot 1: Entradas 20 Bytes"/>
+          <Text TextId="IDT_SUBSLOT_OUTPUTS" Value="Subslot 2: Saídas 6 Bytes"/>
+          <Text TextId="IDT_MOD_IN_NAME" Value="Vision Inputs 20B"/>
+          <Text TextId="IDT_MOD_IN_INFO" Value="20 Bytes In (Status, Class, Count, X, Y, Angle, Recipe)"/>
+          <Text TextId="IDT_MOD_OUT_NAME" Value="Vision Outputs 6B"/>
+          <Text TextId="IDT_MOD_OUT_INFO" Value="6 Bytes Out (Trigger, Recipe Cmd, Mode, Reset)"/>
+          <Text TextId="IDT_STATUS_FLAGS" Value="Status Flags (UINT16)"/>
+          <Text TextId="IDT_CLASS_ID" Value="Class ID (UINT16)"/>
+          <Text TextId="IDT_OBJECT_COUNT" Value="Object Count (UINT16)"/>
+          <Text TextId="IDT_POS_X_MM" Value="Pos X mm (FLOAT32)"/>
+          <Text TextId="IDT_POS_Y_MM" Value="Pos Y mm (FLOAT32)"/>
+          <Text TextId="IDT_ANGLE_DEG" Value="Angle Deg (FLOAT32)"/>
+          <Text TextId="IDT_ACTIVE_RECIPE" Value="Active Recipe (UINT16)"/>
+          <Text TextId="IDT_TRIGGER_CMD" Value="Trigger Cmd (UINT8)"/>
+          <Text TextId="IDT_RECIPE_CMD" Value="Recipe Cmd (UINT8)"/>
+          <Text TextId="IDT_MODE_CMD" Value="Mode Cmd (UINT8)"/>
+          <Text TextId="IDT_RESET_FAULT" Value="Reset Fault (UINT8)"/>
+          <Text TextId="IDT_RESERVED" Value="Reserved (UINT16)"/>
+        </PrimaryLanguage>
+      </ExternalTextList>
+    </ApplicationProcess>
+  </ProfileBody>
+</ISO15745Profile>

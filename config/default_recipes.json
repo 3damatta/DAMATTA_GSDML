@@ -1,0 +1,29 @@
+{
+  "1": {
+    "name": "Inspeção de Peças Vermelhas",
+    "description": "Filtro HSV para peças com tonalidade vermelha",
+    "hsv_min": [0, 120, 70],
+    "hsv_max": [10, 255, 255],
+    "min_count": 1,
+    "max_count": 5,
+    "roi": [50, 50, 540, 380]
+  },
+  "2": {
+    "name": "Inspeção de Peças Azuis",
+    "description": "Filtro HSV para peças com tonalidade azul",
+    "hsv_min": [100, 150, 50],
+    "hsv_max": [130, 255, 255],
+    "min_count": 1,
+    "max_count": 5,
+    "roi": [50, 50, 540, 380]
+  },
+  "3": {
+    "name": "Inspeção de Geometria Geral",
+    "description": "Detecção de contornos e formas sem filtro de cor restritivo",
+    "hsv_min": [0, 0, 40],
+    "hsv_max": [180, 255, 255],
+    "min_count": 1,
+    "max_count": 20,
+    "roi": [20, 20, 600, 440]
+  }
+}

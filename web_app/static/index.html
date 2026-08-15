@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROFINET Vision System - Raspberry Pi</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="brand">
+            <span class="logo-icon">👁️</span>
+            <div>
+                <h1>DAMATTA GSDML Vision System</h1>
+                <p class="subtitle">Raspberry Pi PROFINET IO-Device & Industrial Vision</p>
+            </div>
+        </div>
+        <div class="system-badges">
+            <div class="badge" id="badge-ready"><span class="dot"></span> READY</div>
+            <div class="badge" id="badge-pass"><span class="dot"></span> PASS</div>
+            <div class="badge" id="badge-target"><span class="dot"></span> TARGET FOUND</div>
+            <div class="badge" id="badge-profinet"><span class="dot"></span> PROFINET ONLINE</div>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- Coluna Esquerda: Stream de Vídeo e Canvas ROI -->
+        <section class="card stream-card">
+            <div class="card-header">
+                <h2>📹 Monitoramento e Calibração ao Vivo</h2>
+                <span class="fps-counter">640x480 @ 30 FPS</span>
+            </div>
+            <div class="video-container" id="video-container">
+                <img id="mjpeg-stream" src="/api/stream" alt="Video Stream">
+                <canvas id="roi-canvas" width="640" height="480"></canvas>
+            </div>
+            <div class="stream-toolbar">
+                <button id="btn-draw-roi" class="btn btn-secondary">✏️ Desenhar ROI</button>
+                <button id="btn-clear-roi" class="btn btn-outline">🔄 Redefinir ROI</button>
+                <span class="hint">Clique e arraste sobre a imagem para definir a Região de Interesse.</span>
+            </div>
+        </section>
+
+        <!-- Coluna Direita: Controles de Inspeção e Receita -->
+        <section class="card controls-card">
+            <div class="card-header">
+                <h2>🎛️ Configuração de Receita</h2>
+                <select id="recipe-select" class="select-input">
+                    <!-- Opções de Receita serão carregadas dinamicamente -->
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Nome da Receita</label>
+                <input type="text" id="recipe-name" class="text-input" value="Nova Receita">
+            </div>
+
+            <div class="hsv-sliders">
+                <h3>🎨 Segmentação de Cor HSV</h3>
+                
+                <div class="slider-row">
+                    <label>Hue (Matiz): <span id="val-h-min">0</span> - <span id="val-h-max">180</span></label>
+                    <div class="range-dual">
+                        <input type="range" id="h-min" min="0" max="180" value="0">
+                        <input type="range" id="h-max" min="0" max="180" value="180">
+                    </div>
+                </div>
+
+                <div class="slider-row">
+                    <label>Saturation (Saturação): <span id="val-s-min">50</span> - <span id="val-s-max">255</span></label>
+                    <div class="range-dual">
+                        <input type="range" id="s-min" min="0" max="255" value="50">
+                        <input type="range" id="s-max" min="0" max="255" value="255">
+                    </div>
+                </div>
+
+                <div class="slider-row">
+                    <label>Value (Brilho): <span id="val-v-min">50</span> - <span id="val-v-max">255</span></label>
+                    <div class="range-dual">
+                        <input type="range" id="v-min" min="0" max="255" value="50">
+                        <input type="range" id="v-max" min="0" max="255" value="255">
+                    </div>
+                </div>
+            </div>
+
+            <div class="count-limits">
+                <h3>🔢 Limites de Contagem de Objetos</h3>
+                <div class="inputs-inline">
+                    <div>
+                        <label>Mínimo</label>
+                        <input type="number" id="min-count" class="text-input" value="1" min="0">
+                    </div>
+                    <div>
+                        <label>Máximo</label>
+                        <input type="number" id="max-count" class="text-input" value="10" min="1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="btn-save-recipe" class="btn btn-primary">💾 Salvar Receita</button>
+                <button id="btn-apply-recipe" class="btn btn-success">▶️ Ativar Receita</button>
+            </div>
+        </section>
+
+        <!-- Painel de Telemetria PROFINET em Tempo Real -->
+        <section class="card telemetry-card full-width">
+            <div class="card-header">
+                <h2>⚡ Telemetria I/O PROFINET (Memória Compartilhada POSIX)</h2>
+                <span class="heartbeat-counter">Heartbeat IPC: <strong id="val-heartbeat">0</strong></span>
+            </div>
+
+            <div class="telemetry-grid">
+                <div class="telemetry-box">
+                    <span class="box-label">Status Flags (Hex)</span>
+                    <span class="box-value mono" id="val-status-flags">0x0001</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Classe Detectada</span>
+                    <span class="box-value" id="val-class-id">0</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Contagem de Objetos</span>
+                    <span class="box-value" id="val-object-count">0</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Posição X (mm)</span>
+                    <span class="box-value mono" id="val-pos-x">0.00</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Posição Y (mm)</span>
+                    <span class="box-value mono" id="val-pos-y">0.00</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Ângulo (°)</span>
+                    <span class="box-value mono" id="val-angle">0.00°</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Trigger PLC (Out Byte 0)</span>
+                    <span class="box-value" id="val-trigger-cmd">0</span>
+                </div>
+                <div class="telemetry-box">
+                    <span class="box-label">Receita Ativa (In Byte 18)</span>
+                    <span class="box-value" id="val-active-recipe">1</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
