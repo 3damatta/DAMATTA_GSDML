@@ -135,6 +135,37 @@ IF bInspeçãoConcluida AND bPeçaAprovada THEN
     // rPosY_mm -> Posição Y da peça em milímetros
     // rAngleDeg -> Rotação da peça
 END_IF;
+
+---
+
+### 4.2. Equivalente em Programação LADDER (LD)
+
+Você também pode utilizar **100% dos dados na linguagem LADDER (LD)** no MasterTool:
+
+#### Rung 1: Disparo da Inspeção (Trigger)
+```text
+  bComandoInspeção   wStatusFlags.5 (Trigger Ack)        bTriggerCmd
+-------| |----------------------|/|------------------------( )-------
+```
+
+#### Rung 2: Detecção de Peça Aprovada (PASS)
+```text
+  wStatusFlags.5     wStatusFlags.2 (PASS)              bPeçaAprovada
+-------| |----------------------| |------------------------( )-------
+```
+
+#### Rung 3: Cópia das Posições X e Y (Bloco MOVE em LADDER)
+```text
+       +---------+
+---| |-|  MOVE   |-
+       | IN:rPosX|---> Posição_Robô_X
+       +---------+
+
+       +---------+
+---| |-|  MOVE   |-
+       | IN:rPosY|---> Posição_Robô_Y
+       +---------+
+```
 ```
 
 ---
