@@ -10,7 +10,9 @@ Este guia prático ensina passo a passo como integrar o sistema de visão **DAMA
 * **CLP Altus NX325** (ou CPU Nexto NX3005 / NX3010 / NX3020 / NX3030 com interface PROFINET Controller ativada na porta `NET1` ou `NET2`).
 * **Raspberry Pi 4 ou 5** com o sistema DAMATTA instalado via `setup_system.sh`.
 * **Câmera USB** conectada ao Raspberry Pi.
-* **Cabo de Rede Ethernet RJ45** conectando a porta `NET1/NET2` do CLP NX325 à porta `eth0` do Raspberry Pi.
+* **Cabo de Rede Ethernet RJ45:**
+  * **Opção A (Via Switch Industrial - Recomendado):** Conecte o CLP NX325, o Raspberry Pi e o PC com MasterTool no mesmo Switch. Isso permite programar o CLP, rodar o PROFINET e acessar a Interface Web no navegador simultaneamente.
+  * **Opção B (Conexão Direta Ponto-a-Ponto):** Cabo Ethernet direto conectando a porta `NET1/NET2` do CLP NX325 à porta `eth0` do Raspberry Pi.
 
 ### Software:
 * **MasterTool IEC XE** (Versão 3.30 ou superior).
