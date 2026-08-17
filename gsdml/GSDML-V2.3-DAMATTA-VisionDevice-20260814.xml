@@ -1,22 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<ISO15745Profile xmlns="http://www.profibus.com/GSDML/2.3/Schema"
+<?xml version="1.0" encoding="utf-8"?>
+<ISO15745Profile xmlns="http://www.profibus.com/GSDML/2003/11/DeviceProfile"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://www.profibus.com/GSDML/2.3/Schema GSDML-Schm-V2.3.xsd">
+                 xsi:schemaLocation="http://www.profibus.com/GSDML/2003/11/DeviceProfile GSDML-DeviceProfile-V2.3.xsd">
   <ProfileHeader>
     <ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
     <ProfileRevision>1.00</ProfileRevision>
-    <ProfileName>PROFINET Device Profile</ProfileName>
-    <ProfileSource>DAMATTA Automation</ProfileSource>
+    <ProfileName>Device Profile for PROFINET Devices</ProfileName>
+    <ProfileSource>PROFIBUS Nutzerorganisation e. V. (PNO)</ProfileSource>
     <ProfileClassID>Device</ProfileClassID>
     <ISO15745Reference>
-      <ISO15745Part>1</ISO15745Part>
+      <ISO15745Part>4</ISO15745Part>
       <ISO15745Edition>1</ISO15745Edition>
-      <ProfileTechnology>PROFINET</ProfileTechnology>
+      <ProfileTechnology>GSDML</ProfileTechnology>
     </ISO15745Reference>
   </ProfileHeader>
 
   <ProfileBody>
-    <DeviceIdentity VendorID="0x02A0" DeviceID="0x0001">
+    <DeviceIdentity VendorID="0x001A" DeviceID="0x0003">
       <InfoText TextId="IDT_INFO_DEVICE"/>
       <VendorName Value="DAMATTA"/>
     </DeviceIdentity>
@@ -27,21 +27,25 @@
 
     <ApplicationProcess>
       <DeviceAccessPointList>
-        <DeviceAccessPointItem ID="DAP_1"
-                               PNIO_Version="V2.3"
+        <DeviceAccessPointItem ID="DAP_RPI"
+                               PhysicalSlots="0..2"
                                ModuleIdentNumber="0x00000001"
                                MinDeviceInterval="32"
                                ImplementationType="p-net"
                                DNS_CompatibleName="rpi-vision-device"
                                FixedInSlots="0"
-                               ObjectUUID_StateManagement="00000000-0000-0000-0000-000000000000">
+                               ObjectUUID_LocalIndex="1"
+                               DeviceAccessSupported="true"
+                               PNIO_Version="V2.3"
+                               CheckDeviceID_Allowed="true"
+                               NameOfStationNotTransferable="true">
           <ModuleInfo>
             <Name TextId="IDT_DAP_NAME"/>
             <InfoText TextId="IDT_DAP_INFO"/>
+            <VendorName Value="DAMATTA"/>
           </ModuleInfo>
 
           <SubslotList>
-            <SubslotItem SubslotNumber="1" TextId="IDT_DAP_SUB"/>
             <SubslotItem SubslotNumber="32768" TextId="IDT_SUBSLOT_INTERFACE"/>
             <SubslotItem SubslotNumber="32769" TextId="IDT_SUBSLOT_PORT1"/>
           </SubslotList>
@@ -54,26 +58,36 @@
           </UseableModules>
 
           <VirtualSubmoduleList>
-            <VirtualSubmoduleItem ID="SUB_DAP" SubmoduleIdentNumber="0x00000001" TextId="IDT_DAP_SUB"/>
+            <VirtualSubmoduleItem ID="SUB_DAP" SubmoduleIdentNumber="0x00000000" API="0">
+              <IOData/>
+              <ModuleInfo>
+                <Name TextId="IDT_DAP_NAME"/>
+                <InfoText TextId="IDT_DAP_INFO"/>
+              </ModuleInfo>
+            </VirtualSubmoduleItem>
           </VirtualSubmoduleList>
 
           <SystemDefinedSubmoduleList>
             <InterfaceSubmoduleItem ID="SUB_INTERFACE"
-                                    SubmoduleIdentNumber="0x00000002"
                                     SubslotNumber="32768"
-                                    TextId="IDT_SUBSLOT_INTERFACE"
+                                    SubmoduleIdentNumber="0x00000001"
                                     SupportedRT_Classes="RT_CLASS_1"
-                                    SupportedProtocols="LLDP;SNMP"
-                                    SupportedMIB2_Groups="sysGroup;ifGroup">
+                                    TextId="IDT_SUBSLOT_INTERFACE"
+                                    SupportedProtocols="SNMP;LLDP"
+                                    SupportedMibs="MIB2"
+                                    IsochroneModeSupported="false">
+              <ApplicationRelations NumberOfAdditionalInputCR="0"
+                                    NumberOfAdditionalMulticastProviderCR="0"
+                                    NumberOfAdditionalOutputCR="0"
+                                    NumberOfMulticastConsumerCR="0">
+                <TimingProperties SendClock="32 64 128" ReductionRatio="1 2 4 8 16 32 64 128 256 512"/>
+              </ApplicationRelations>
             </InterfaceSubmoduleItem>
             <PortSubmoduleItem ID="SUB_PORT1"
-                               SubmoduleIdentNumber="0x00000003"
                                SubslotNumber="32769"
-                               TextId="IDT_SUBSLOT_PORT1"
+                               SubmoduleIdentNumber="0x00000002"
                                MAUTypes="16"
-                               MaxPortRxDelay="100"
-                               MaxPortTxDelay="100">
-            </PortSubmoduleItem>
+                               TextId="IDT_SUBSLOT_PORT1"/>
           </SystemDefinedSubmoduleList>
         </DeviceAccessPointItem>
       </DeviceAccessPointList>
@@ -129,7 +143,6 @@
           <Text TextId="IDT_INFO_DEVICE" Value="Dispositivo de Visao Industrial PROFINET IO-Device para Raspberry Pi"/>
           <Text TextId="IDT_DAP_NAME" Value="Raspberry Pi Vision DAP"/>
           <Text TextId="IDT_DAP_INFO" Value="Device Access Point para p-net PROFINET RT"/>
-          <Text TextId="IDT_DAP_SUB" Value="Raspberry Pi DAP Submodule"/>
           <Text TextId="IDT_SUBSLOT_INTERFACE" Value="Interface Ethernet PN-IO"/>
           <Text TextId="IDT_SUBSLOT_PORT1" Value="Porta Ethernet 1 (eth0)"/>
           <Text TextId="IDT_MOD_IN_NAME" Value="Vision Inputs 20B"/>
