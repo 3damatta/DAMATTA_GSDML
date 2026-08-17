@@ -5,7 +5,7 @@
   <ProfileHeader>
     <ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
     <ProfileRevision>1.00</ProfileRevision>
-    <ProfileName>Raspberry Pi Industrial Vision System</ProfileName>
+    <ProfileName>PROFINET Device Profile</ProfileName>
     <ProfileSource>DAMATTA Automation</ProfileSource>
     <ProfileClassID>Device</ProfileClassID>
     <ISO15745Reference>
@@ -41,6 +41,7 @@
           </ModuleInfo>
 
           <SubslotList>
+            <SubslotItem SubslotNumber="1" TextId="IDT_DAP_SUB"/>
             <SubslotItem SubslotNumber="32768" TextId="IDT_SUBSLOT_INTERFACE"/>
             <SubslotItem SubslotNumber="32769" TextId="IDT_SUBSLOT_PORT1"/>
           </SubslotList>
@@ -51,6 +52,13 @@
             <ModuleItemRef ModuleItemTarget="MOD_IN_20BYTES" AllowedInSlots="1"/>
             <ModuleItemRef ModuleItemTarget="MOD_OUT_6BYTES" AllowedInSlots="2"/>
           </UseableModules>
+
+          <VirtualSubmoduleList>
+            <VirtualSubmoduleItem ID="SUB_DAP"
+                                  SubmoduleIdentNumber="0x00000001"
+                                  TextId="IDT_DAP_SUB">
+            </VirtualSubmoduleItem>
+          </VirtualSubmoduleList>
 
           <SystemDefinedSubmoduleList>
             <InterfaceSubmoduleItem ID="SUB_INTERFACE"
@@ -122,6 +130,7 @@
           <Text TextId="IDT_INFO_DEVICE" Value="Dispositivo de Visao Industrial PROFINET IO-Device para Raspberry Pi"/>
           <Text TextId="IDT_DAP_NAME" Value="Raspberry Pi Vision DAP"/>
           <Text TextId="IDT_DAP_INFO" Value="Device Access Point para p-net PROFINET RT"/>
+          <Text TextId="IDT_DAP_SUB" Value="Raspberry Pi DAP Submodule"/>
           <Text TextId="IDT_SUBSLOT_INTERFACE" Value="Interface Ethernet PN-IO"/>
           <Text TextId="IDT_SUBSLOT_PORT1" Value="Porta Ethernet 1 (eth0)"/>
           <Text TextId="IDT_MOD_IN_NAME" Value="Vision Inputs 20B"/>
