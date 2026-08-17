@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ISO15745Profile xmlns="http://www.profibus.com/GSDML/2.3/Schema"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://www.profibus.com/GSDML/2.3/Schema GSDML-Schm-v2.3.xsd">
+                 xsi:schemaLocation="http://www.profibus.com/GSDML/2.3/Schema GSDML-Schm-V2.3.xsd">
   <ProfileHeader>
     <ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
     <ProfileRevision>1.00</ProfileRevision>
     <ProfileName>PROFINET Device Profile</ProfileName>
-    <ProfileSource>Siemens</ProfileSource>
+    <ProfileSource>DAMATTA Automation</ProfileSource>
     <ProfileClassID>Device</ProfileClassID>
     <ISO15745Reference>
       <ISO15745Part>1</ISO15745Part>
@@ -63,12 +63,14 @@
                                     SubslotNumber="32768"
                                     TextId="IDT_SUBSLOT_INTERFACE"
                                     SupportedRT_Classes="RT_CLASS_1"
-                                    SupportedProtocols="LLDP;SNMP">
+                                    SupportedProtocols="LLDP;SNMP"
+                                    SupportedMIB2_Groups="sysGroup;ifGroup">
             </InterfaceSubmoduleItem>
             <PortSubmoduleItem ID="SUB_PORT1"
                                SubmoduleIdentNumber="0x00000003"
                                SubslotNumber="32769"
                                TextId="IDT_SUBSLOT_PORT1"
+                               MAUTypes="16"
                                MaxPortRxDelay="100"
                                MaxPortTxDelay="100">
             </PortSubmoduleItem>
