@@ -1,190 +1,89 @@
-# Tutorial de Configuração e Uso: MasterTool IEC XE & CLP Altus (Série Nexto / Hadron NX325)
+# Tutorial Passo a Passo: Configuração PROFINET no MasterTool IEC XE / CODESYS 3.5 (Altus NX325 + Raspberry Pi)
 
-Este guia prático ensina passo a passo como integrar o sistema de visão **DAMATTA PROFINET** no ambiente **MasterTool IEC XE** (Altus) utilizando o CLP **Altus NX325 / Série Nexto**.
-
----
-
-## 🛠️ 1. Pré-Requisitos
-
-### Hardware:
-* **CLP Altus NX325** (ou CPU Nexto NX3005 / NX3010 / NX3020 / NX3030 com interface PROFINET Controller ativada na porta `NET1` ou `NET2`).
-* **Raspberry Pi 4 ou 5** com o sistema DAMATTA instalado via `setup_system.sh`.
-* **Câmera USB** conectada ao Raspberry Pi.
-* **Cabo de Rede Ethernet RJ45:**
-  * **Opção A (Via Switch Industrial - Recomendado):** Conecte o CLP NX325, o Raspberry Pi e o PC com MasterTool no mesmo Switch. Isso permite programar o CLP, rodar o PROFINET e acessar a Interface Web no navegador simultaneamente.
-  * **Opção B (Conexão Direta Ponto-a-Ponto):** Cabo Ethernet direto conectando a porta `NET1/NET2` do CLP NX325 à porta `eth0` do Raspberry Pi.
-
-### Software:
-* **MasterTool IEC XE** (Versão 3.30 ou superior).
-* Descritor XML `GSDML-V2.42-Custom-VisionDevice-20260814.xml` (localizado na pasta `gsdml/` do repositório).
+Este tutorial detalha o procedimento idêntico ao fluxo de configuração do **CODESYS 3.5 & PROFINET**, adaptado para o **MasterTool IEC XE (Altus Nexto NX325)** e a câmera industrial **Raspberry Pi (DAMATTA Vision System)**.
 
 ---
 
-## 📂 2. Importação do GSDML no MasterTool IEC XE
-
-1. Abra o **MasterTool IEC XE**.
-2. No menu superior, vá em **Ferramentas (Tools)** $\rightarrow$ **Repositório de Dispositivos (Device Repository...)**.
-3. Na janela que se abre, clique no botão **Instalar (Install...)**.
-4. Selecione o arquivo XML do projeto:
-   `DAMATTA_GSDML/gsdml/GSDML-V2.42-Custom-VisionDevice-20260814.xml`
-5. Confirme a instalação. O dispositivo ficará registrado sob:
-   `Fieldbusses -> PROFINET IO -> I/O -> Vision Systems -> DAMATTA Automation -> Raspberry Pi Vision DAP`.
+## 📋 Pré-requisitos
+1. **MasterTool IEC XE** v3.75 ou superior instalado no PC.
+2. CLP Altus **Nexto NX325** (ou similar da série Nexto) conectado na rede Ethernet.
+3. Arquivo descritor PROFINET: **`GSDML-V2.31-DAMATTA-VisionDevice-20260814.xml`**.
+4. Sistema de Visão (Raspberry Pi) executando o daemon `profinet_app` (p-net).
 
 ---
 
-## 🎛️ 3. Configuração do Hardware no Projeto MasterTool
+## 🚀 Passo 1: Instalação do Arquivo GSDML no Repositório de Dispositivos
 
-### Passo 3.1: Adicionar o PROFINET Controller na CPU NX325
-1. Na árvore de dispositivos (**Device Tree**), localize a CPU **NX325**.
-2. Clique com o botão direito na interface Ethernet desejada (ex: **NET 1**) e selecione **Adicionar Dispositivo (Add Device...)**.
-3. Escolha **PROFINET IO Controller** e confirme.
-
-### Passo 3.2: Adicionar o Raspberry Pi Vision DAP
-1. Clique com o botão direito sobre o **PROFINET IO Controller** recém-criado.
-2. Selecione **Adicionar Dispositivo (Add Device...)**.
-3. Expanda a árvore e selecione **Raspberry Pi Vision DAP** (`DAMATTA Automation`).
-4. Clique em **Adicionar Dispositivo**.
-
-### Passo 3.3: Parametrizar IP e Nome da Estação (Name of Station)
-1. Dê um duplo clique no dispositivo **Raspberry Pi Vision DAP** na árvore do projeto.
-2. Na aba **PROFINET General**:
-   * **Nome da Estação (Station Name):** `rpi-vision-device`
-   * **Endereço IP (IP Address):** Defina o IP fixo da rede do Raspberry Pi (exemplo: `190.201.200.50` ou `192.168.1.50`).
-   * **Máscara de Sub-rede:** `255.255.255.0`
+1. No MasterTool IEC XE, acesse o menu superior: **Ferramentas (Tools)** $\rightarrow$ **Repositório de Dispositivos... (Device Repository)**.
+2. Na janela que abrir, certifique-se de que a localização esteja em **User Repository** ou **System Repository**.
+3. Clique no botão **Instalar... (Install...)**.
+4. Navegue até a pasta onde salvou o arquivo `GSDML-V2.31-DAMATTA-VisionDevice-20260814.xml` (ou `GSDML-V2.3-DAMATTA-VisionDevice-20260814.xml`).
+5. Clique em **Abrir**. O dispositivo **Raspberry Pi Vision DAP** aparecerá sob a categoria **Fieldbusses / PROFINET IO / I/O / DAMATTA**.
+6. Clique em **Fechar**.
 
 ---
 
-## 💻 4. Programação em Texto Estruturado (ST) para o CLP NX325
+## 🌐 Passo 2: Configuração da Interface Ethernet e do PROFINET Controller no Projeto
 
-Crie uma nova POU no MasterTool IEC XE chamada `POU_Visao_NX325` (Linguagem: **ST - Structured Text**):
-
-### Código de Declaração de Variáveis (VAR):
-
-```pascal
-PROGRAM POU_Visao_NX325
-VAR
-    // -----------------------------------------------------------------
-    // MAPEAMENTO DE SAÍDAS (6 Bytes: CLP NX325 -> Raspberry Pi)
-    // -----------------------------------------------------------------
-    bTriggerCmd   AT %QB0 : BYTE;  // Offset 0: 1 = Disparo de Captura (Borda de Subida)
-    bRecipeCmd    AT %QB1 : BYTE;  // Offset 1: ID da Receita (1=Peça Vermelha, 2=Peça Azul)
-    bModeCmd      AT %QB2 : BYTE;  // Offset 2: 0 = Modo Automático, 1 = Modo Pausa
-    bResetFault   AT %QB3 : BYTE;  // Offset 3: 1 = Reset de Falhas
-
-    // -----------------------------------------------------------------
-    // MAPEAMENTO DE ENTRADAS (20 Bytes: Raspberry Pi -> CLP NX325)
-    // -----------------------------------------------------------------
-    wStatusFlags  AT %IW0 : WORD;  // Offset 0..1: Flags de Status (Bit 0=Ready, Bit 2=PASS, Bit 5=Ack)
-    wClassID      AT %IW2 : WORD;  // Offset 2..3: Classe Detectada (1=Círculo, 2=Retângulo)
-    wObjectCount  AT %IW4 : WORD;  // Offset 4..5: Quantidade de Objetos
-    rPosX_mm      AT %ID6 : REAL;  // Offset 6..9: Posição X (mm)
-    rPosY_mm      AT %ID10 : REAL; // Offset 10..13: Posição Y (mm)
-    rAngleDeg     AT %ID14 : REAL; // Offset 14..17: Ângulo (graus)
-    wActiveRecipe AT %IW18 : WORD; // Offset 18..19: Receita Ativa Confirmada
-
-    // -----------------------------------------------------------------
-    // VARIÁVEIS DE CONTROLE DO PROCESSO
-    // -----------------------------------------------------------------
-    bComandoInspeção : BOOL;       // Sensor físico ou comando do ciclo de máquina
-    bInspeçãoConcluida: BOOL;      // Sinaliza fim da inspeção para a máquina
-    bPeçaAprovada    : BOOL;       // Peça Aprovada (PASS)
-    bPeçaReprovada   : BOOL;       // Peça Reprovada (FAIL)
-    
-    xTriggerAck      : BOOL;       // Bit 5 de wStatusFlags
-END_VAR
-```
-
-### Código de Execução (ST Body):
-
-```pascal
-// =====================================================================
-// LÓGICA DE CONTROLE DE VISÃO PROFINET - CLP ALTUS NX325
-// =====================================================================
-
-// Extração do Bit 5 (Trigger Ack) do Word de Status
-xTriggerAck := (wStatusFlags AND 16#0020) <> 0;
-
-// Configuração Padrão da Receita
-bRecipeCmd := 1; // Seleciona Receita 1
-bModeCmd   := 0; // Modo Automático
-
-// ---------------------------------------------------------------------
-// 1. DISPARO DA INSPEÇÃO (Borda de Subida)
-// ---------------------------------------------------------------------
-IF bComandoInspeção AND NOT xTriggerAck THEN
-    bTriggerCmd := 1;           // Envia ordem de disparo ao Raspberry Pi
-    bInspeçãoConcluida := FALSE;
-END_IF;
-
-// ---------------------------------------------------------------------
-// 2. RESPOSTA E HANDSHAKE DO RASPBERRY PI (Trigger Ack Recebido)
-// ---------------------------------------------------------------------
-IF xTriggerAck THEN
-    bTriggerCmd := 0;           // Reseta a ordem de disparo no PLC
-    bInspeçãoConcluida := TRUE; // Sinaliza fim do ciclo
-    
-    // Leitura das Flags de Resultado
-    bPeçaAprovada  := (wStatusFlags AND 16#0004) <> 0; // Bit 2: PASS (OK)
-    bPeçaReprovada := (wStatusFlags AND 16#0008) <> 0; // Bit 3: FAIL (NOK)
-END_IF;
-
-// ---------------------------------------------------------------------
-// 3. USO DOS DADOS DA PEÇA NO CLP (Exemplo de Atuação)
-// ---------------------------------------------------------------------
-IF bInspeçãoConcluida AND bPeçaAprovada THEN
-    // Posições X e Y prontas para envio ao robô ou atuador servo:
-    // rPosX_mm -> Posição X da peça em milímetros
-    // rPosY_mm -> Posição Y da peça em milímetros
-    // rAngleDeg -> Rotação da peça
-END_IF;
+1. Na árvore de dispositivos (lado esquerdo), clique com o botão direito no nó **Device (NX325)** e selecione **Adicionar Dispositivo... (Add Device...)**.
+2. Expanda **Ethernet Adapter** $\rightarrow$ selecione **Ethernet** e clique em **Adicionar Dispositivo**.
+3. Dobre o clique no item **Ethernet** adicionado na árvore.
+4. Na aba **Configurações de Ethernet**, clique no botão **Navegar...** e selecione a interface de rede física (ex: `eth0` ou a placa de rede do CLP/PC).
+5. Clique com o botão direito no nó **Ethernet** na árvore $\rightarrow$ **Adicionar Dispositivo...**.
+6. Selecione **PROFINET IO Master / Controller** $\rightarrow$ **PROFINET Controller** e clique em **Adicionar Dispositivo**.
 
 ---
 
-### 4.2. Equivalente em Programação LADDER (LD)
+## 📷 Passo 3: Adição do Dispositivo de Visão (Raspberry Pi) ao PROFINET Controller
 
-Você também pode utilizar **100% dos dados na linguagem LADDER (LD)** no MasterTool:
-
-#### Rung 1: Disparo da Inspeção (Trigger)
-```text
-  bComandoInspeção   wStatusFlags.5 (Trigger Ack)        bTriggerCmd
--------| |----------------------|/|------------------------( )-------
-```
-
-#### Rung 2: Detecção de Peça Aprovada (PASS)
-```text
-  wStatusFlags.5     wStatusFlags.2 (PASS)              bPeçaAprovada
--------| |----------------------| |------------------------( )-------
-```
-
-#### Rung 3: Cópia das Posições X e Y (Bloco MOVE em LADDER)
-```text
-       +---------+
----| |-|  MOVE   |-
-       | IN:rPosX|---> Posição_Robô_X
-       +---------+
-
-       +---------+
----| |-|  MOVE   |-
-       | IN:rPosY|---> Posição_Robô_Y
-       +---------+
-```
-```
+1. Na árvore do projeto, clique com o botão direito sobre o **PROFINET Controller** recém-criado $\rightarrow$ **Adicionar Dispositivo...**.
+2. Na janela de busca de dispositivos, navegue até:
+   **PROFINET IO** $\rightarrow$ **I/O** $\rightarrow$ **DAMATTA** $\rightarrow$ **Raspberry Pi Vision DAP**.
+3. Clique em **Adicionar Dispositivo**.
 
 ---
 
-## 🌐 5. Teste e Validação com a Interface Web
+## 📦 Passo 4: Inserção dos Módulos de Entrada (20 Bytes) e Saída (6 Bytes)
 
-1. Conecte seu PC no mesmo Switch da rede do CLP NX325 e do Raspberry Pi.
-2. Abra o navegador em: `http://<IP_DO_RASPBERRY>:8000`.
-3. Na interface web:
-   * Observe o painel **Telemetria I/O PROFINET**.
-   * Quando o CLP NX325 acionar a variável `bComandoInspeção`, você verá o bit de disparo ser ativado e os valores de **Posição X**, **Posição Y** e **Status** sendo atualizados instantaneamente no MasterTool e na tela Web.
+1. Expanda o dispositivo **Raspberry Pi Vision DAP** na árvore do projeto.
+2. Dobre o clique no dispositivo para abrir a configuração de Slots.
+3. No **Slot 1**: Clique com o botão direito ou selecione na lista o módulo **`Vision Inputs 20B`** (20 Bytes In).
+4. No **Slot 2**: Clique com o botão direito ou selecione na lista o módulo **`Vision Outputs 6B`** (6 Bytes Out).
 
 ---
 
-## ❓ 6. Dúvidas Frequentes (Troubleshooting)
+## 🔗 Passo 5: Mapeamento de Variáveis E/S (PROFINET I/O Mapping)
 
-* **O MasterTool indica falha de comunicação PROFINET no nó RPi:**
-  1. Verifique se o comando `sudo ./scripts/setup_system.sh` foi executado no Raspberry Pi.
-  2. Confirme se o campo **Station Name** no MasterTool está exatamente como `rpi-vision-device`.
-  3. Verifique se os IPs do CLP NX325 e do Raspberry Pi pertencem à mesma sub-rede (ex: `192.168.1.X`).
+Na aba **Mapeamento de E/S PROFINET** de cada módulo, vincule os canais de hardware às variáveis globais da sua aplicação:
+
+### Entradas (Módulo 20 Bytes In - Slot 1):
+| Endereço Byte | Tipo de Dado | Nome da Variável no PLC | Descrição |
+| :--- | :--- | :--- | :--- |
+| `%IW0` | `UINT` | `g_StatusFlags` | Flags (Bit 0: OK, Bit 1: Error, Bit 5: Trigger Ack) |
+| `%IW2` | `UINT` | `g_ClassID` | Classe identificada (ex: 1 = Peça A, 2 = Peça B) |
+| `%IW4` | `UINT` | `g_ObjectCount` | Contagem total de objetos inspecionados |
+| `%ID6` | `REAL` | `g_PosX_mm` | Posição X em milímetros na esteira |
+| `%ID10` | `REAL` | `g_PosY_mm` | Posição Y em milímetros na esteira |
+| `%ID14` | `REAL` | `g_Angle_deg` | Ângulo de rotação da peça em graus |
+| `%IW18` | `UINT` | `g_ActiveRecipe` | ID da receita ativa no Raspberry Pi |
+
+### Saídas (Módulo 6 Bytes Out - Slot 2):
+| Endereço Byte | Tipo de Dado | Nome da Variável no PLC | Descrição |
+| :--- | :--- | :--- | :--- |
+| `%QB0` | `BYTE` | `g_TriggerCmd` | Comando de disparo de foto (Pulso Bit 0) |
+| `%QB1` | `BYTE` | `g_RecipeCmd` | Troca de receita enviada pelo PLC |
+| `%QB2` | `BYTE` | `g_ModeCmd` | Modo de operação (0: Contínuo, 1: Trigger) |
+| `%QB3` | `BYTE` | `g_ResetFault` | Reset de falha da visão |
+| `%QW4` | `WORD` | `g_Reserved` | Reservado para expansão futura |
+
+---
+
+## 🧪 Passo 6: Compilação, Login e Testes (Forçamento via Ctrl+F7)
+
+1. Pressione **F11** para compilar o projeto (*Build*). Certifique-se de que não haja erros de compilação.
+2. Conecte ao CLP clicando em **Online** $\rightarrow$ **Login** ($\text{Alt}+\text{F8}$).
+3. Coloque o CLP em modo de execução ($\text{F5}$ - *Start*).
+4. Para testar o disparo de foto via **Forçamento de Valores**:
+   - Na lista de variáveis ou no programa em LADDER/ST, mude o valor preparado de `g_TriggerCmd` para `1`.
+   - Pressione **Ctrl + F7** para escrever/forçar o valor no CLP.
+   - Observe o pulso em `g_StatusFlags` (Bit 5: Trigger Ack) confirmando que a foto foi processada!
