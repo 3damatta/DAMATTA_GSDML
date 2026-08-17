@@ -6,7 +6,7 @@
     <ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
     <ProfileRevision>1.00</ProfileRevision>
     <ProfileName>PROFINET Device Profile</ProfileName>
-    <ProfileSource>DAMATTA Automation</ProfileSource>
+    <ProfileSource>Siemens</ProfileSource>
     <ProfileClassID>Device</ProfileClassID>
     <ISO15745Reference>
       <ISO15745Part>1</ISO15745Part>
@@ -16,9 +16,9 @@
   </ProfileHeader>
 
   <ProfileBody>
-    <DeviceIdentity VendorID="0x0600" DeviceID="0x0001">
+    <DeviceIdentity VendorID="0x02A0" DeviceID="0x0001">
       <InfoText TextId="IDT_INFO_DEVICE"/>
-      <VendorName Value="DAMATTA Automation"/>
+      <VendorName Value="DAMATTA"/>
     </DeviceIdentity>
 
     <DeviceFunction>
@@ -31,7 +31,7 @@
                                PNIO_Version="V2.31"
                                ModuleIdentNumber="0x00000001"
                                MinDeviceInterval="32"
-                               ImplementationType="p-net OpenSource"
+                               ImplementationType="p-net"
                                DNS_CompatibleName="rpi-vision-device"
                                FixedInSlots="0"
                                ObjectUUID_StateManagement="00000000-0000-0000-0000-000000000000">
@@ -54,10 +54,7 @@
           </UseableModules>
 
           <VirtualSubmoduleList>
-            <VirtualSubmoduleItem ID="SUB_DAP"
-                                  SubmoduleIdentNumber="0x00000001"
-                                  TextId="IDT_DAP_SUB">
-            </VirtualSubmoduleItem>
+            <VirtualSubmoduleItem ID="SUB_DAP" SubmoduleIdentNumber="0x00000001" TextId="IDT_DAP_SUB"/>
           </VirtualSubmoduleList>
 
           <SystemDefinedSubmoduleList>

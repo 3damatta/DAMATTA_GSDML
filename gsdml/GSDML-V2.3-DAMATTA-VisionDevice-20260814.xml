@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ISO15745Profile xmlns="http://www.profibus.com/GSDML/2.31/Schema"
+<ISO15745Profile xmlns="http://www.profibus.com/GSDML/2.3/Schema"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://www.profibus.com/GSDML/2.31/Schema GSDML-Schm-v2.31.xsd">
+                 xsi:schemaLocation="http://www.profibus.com/GSDML/2.3/Schema GSDML-Schm-v2.3.xsd">
   <ProfileHeader>
     <ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
     <ProfileRevision>1.00</ProfileRevision>
@@ -28,7 +28,7 @@
     <ApplicationProcess>
       <DeviceAccessPointList>
         <DeviceAccessPointItem ID="DAP_1"
-                               PNIO_Version="V2.31"
+                               PNIO_Version="V2.3"
                                ModuleIdentNumber="0x00000001"
                                MinDeviceInterval="32"
                                ImplementationType="p-net"
