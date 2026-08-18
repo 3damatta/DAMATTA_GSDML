@@ -1,6 +1,6 @@
 # Tutorial Passo a Passo: Configuração PROFINET no MasterTool IEC XE (Altus Nexto NX325 / XP325 + Raspberry Pi)
 
-Este tutorial descreve o procedimento completo de configuração do **MasterTool IEC XE**, a instalação do descritor **GSDML**, a montagem da árvore de dispositivos PROFINET e o código em **Texto Estruturado (ST)** para detecção e contagem de peças vermelhas.
+Este tutorial descreve o procedimento completo de configuração do **MasterTool IEC XE**, a instalação do descritor **GSDML**, a montagem da árvore de dispositivos PROFINET e o programa em **Texto Estruturado (ST)** para contabilização e somatória de peças no CLP.
 
 ---
 
@@ -55,9 +55,9 @@ Dê um duplo clique no módulo **`Vision_Inputs_20B`** (Slot 1) $\rightarrow$ ab
 | :--- | :--- | :--- | :--- |
 | `%IW0` | `UINT` | `Status Flags` | Bit 0: Ready, Bit 1: Error, Bit 5: Trigger Ack |
 | `%IW2` | `UINT` | `Class ID` | ID da Classe (1 = Peça Vermelha, 2 = Verde, 3 = Azul) |
-| `%IW4` | `UINT` | `Object Count` | Quantidade de objetos contados na foto |
-| `%ID6` | `REAL` | `Pos X mm` | Posição X em milímetros |
-| `%ID10` | `REAL` | `Pos Y mm` | Posição Y em milímetros |
+| `%IW4` | `UINT` | `Object Count` | Quantidade de objetos contados NA FOTO ATUAL |
+| `%ID6` | `REAL` | `Pos X mm` | Posição X em milímetros da peça na foto |
+| `%ID10` | `REAL` | `Pos Y mm` | Posição Y em milímetros da peça na foto |
 | `%ID14` | `REAL` | `Angle Deg` | Ângulo da peça em graus |
 | `%IW18` | `UINT` | `Active Recipe` | ID da Receita Ativa |
 
@@ -65,102 +65,102 @@ Dê um duplo clique no módulo **`Vision_Outputs_6B`** (Slot 2) $\rightarrow$ ab
 
 | Endereço Byte | Tipo de Dado | Canal | Descrição |
 | :--- | :--- | :--- | :--- |
-| `%QB0` | `USINT` | `Trigger Cmd` | Comando para disparar foto (1 = Disparar) |
+| `%QB0` | `USINT` | `Trigger Cmd` | Comando para disparar foto (1 = Disparar foto) |
 | `%QB1` | `USINT` | `Recipe Cmd` | Comando de seleção de receita |
 | `%QB2` | `USINT` | `Mode Cmd` | Modo de operação (0 = Automático, 1 = Calibração) |
 | `%QB3` | `USINT` | `Reset Fault` | Reset de alarmes da visão |
 
 ---
 
-## 💻 5. Programa em Texto Estruturado (ST) - Contagem de Peças Vermelhas
+## 💻 5. Programa em Texto Estruturado (ST) - Somatória Acumulada no CLP
 
-Copie o código abaixo e cole no seu programa **`UserPrg (PRG)`**:
+A câmera responde estritamente a quantidade de peças daquela foto (`g_ObjectCount`). O programa abaixo no CLP lê o resultado de cada foto e **contabiliza/soma acumuladamente no CLP**:
 
 ### Bloco de Variáveis (`VAR`):
 ```iecst
 PROGRAM UserPrg
 VAR
-    (* --- ENTRADAS DA VISÃO PROFINET --- *)
-    g_StatusFlags       : UINT;     (* Status Flags *)
-    g_ClassID           : UINT;     (* ID da Classe: 1 = Vermelha, 2 = Verde, 3 = Azul *)
-    g_ObjectCount       : UINT;     (* Peças encontradas na foto atual *)
-    g_PosX_mm           : REAL;     (* Posição X (mm) *)
-    g_PosY_mm           : REAL;     (* Posição Y (mm) *)
-    g_Angle_deg         : REAL;     (* Ângulo de rotação (°) *)
-    g_ActiveRecipe      : UINT;     (* Receita Ativa *)
+    (* --- ENTRADAS PROFINET DA VISÃO (ENTREGUES PELA CÂMERA NA FOTO ATUAL) --- *)
+    g_StatusFlags       : UINT;     (* Status Flags (Bit 5: Trigger Ack) *)
+    g_ClassID           : UINT;     (* ID da Classe (1 = Peça Vermelha) *)
+    g_ObjectCount       : UINT;     (* Quantidade de peças encontradas EXATAMENTE NA FOTO ATUAL *)
+    g_PosX_mm           : REAL;     (* Posição X em mm *)
+    g_PosY_mm           : REAL;     (* Posição Y em mm *)
+    g_Angle_deg         : REAL;     (* Ângulo em graus *)
+    g_ActiveRecipe      : UINT;     (* Receita ativa na câmera *)
 
-    (* --- SAÍDAS DA VISÃO PROFINET --- *)
-    g_TriggerCmd        : BYTE;     (* Comando de Disparo *)
-    g_RecipeCmd         : BYTE;     (* Comando de Receita *)
-    g_ResetFault        : BYTE;     (* Reset de Falha *)
+    (* --- SAÍDAS PROFINET PARA A VISÃO --- *)
+    g_TriggerCmd        : BYTE;     (* Comando para disparar foto (1 = Tirar foto) *)
+    g_RecipeCmd         : BYTE;     (* Comando para trocar receita *)
+    g_ResetFault        : BYTE;     (* Reset de falha *)
 
-    (* --- CONTROLES DA OPERAÇÃO --- *)
-    bStartInspection    : BOOL := FALSE; (* Mude para TRUE para tirar uma foto *)
-    bResetRedCounter    : BOOL := FALSE; (* Mude para TRUE para ZERAR a contagem de vermelhas *)
+    (* --- CONTROLE DE EXECUÇÃO NO CLP --- *)
+    bStartInspection    : BOOL := FALSE; (* Alterne para TRUE para disparar a foto *)
+    bResetTotalCounter  : BOOL := FALSE; (* Ligue para zerar a contagem acumulada no CLP *)
     bResetFaultCmd      : BOOL := FALSE; (* Reset de falha *)
-    nRecipeToSelect     : BYTE := 1;     (* Número da Receita *)
+    nRecipeToSelect     : BYTE := 1;     (* ID da Receita selecionada pelo CLP *)
 
-    (* --- RESULTADOS DA CONTAGEM DE PEÇAS VERMELHAS --- *)
-    nRedPartsCount      : UDINT := 0;    (* CONTADOR TOTAL ACUMULADO DE PEÇAS VERMELHAS *)
-    nRedPartsInFrame    : UINT := 0;     (* Peças Vermelhas na última foto *)
-    bIsRedPart          : BOOL := FALSE; (* TRUE quando a peça for Vermelha (Class 1) *)
+    (* --- CONTABILIZAÇÃO E SOMATÓRIA ACUMULADA NO CLP --- *)
+    nTotalRedPartsCount : UDINT := 0;    (* CONTADOR TOTAL ACUMULADO SOMADO PELO CLP *)
+    nPartsInCurrentPhoto: UINT := 0;     (* Peças encontradas na foto do disparo atual *)
+    bIsRedPart          : BOOL := FALSE; (* TRUE se a classe da peça for Vermelha (Class 1) *)
 
-    (* --- BITS DE STATUS E MEMÓRIA --- *)
+    (* --- BITS DE STATUS E BORDA DE SUBIDA DO DISPARO --- *)
     bSystemOK           : BOOL;
     bInspectionError    : BOOL;
     bTriggerAck         : BOOL;
-    bTriggerAckOld      : BOOL := FALSE; (* Memória para detectar a foto concluída *)
+    bTriggerAckOld      : BOOL := FALSE; (* Memória de borda para evitar dupla contagem *)
 END_VAR
 ```
 
 ### Bloco de Código ST:
 ```iecst
 (* ========================================================================= *)
-(*    PROGRAMA: CONTADOR DE PEÇAS VERMELHAS VIA VISÃO PROFINET (ST)         *)
+(*    PROGRAMA CLP: CONTABILIZAÇÃO E SOMATÓRIA DE PEÇAS VERMELHAS (ST)      *)
 (* ========================================================================= *)
 
-(* 1. DECODIFICAÇÃO DAS FLAGS DE STATUS *)
-bSystemOK        := (g_StatusFlags AND 16#0001) <> 0; (* Bit 0 *)
-bInspectionError := (g_StatusFlags AND 16#0002) <> 0; (* Bit 1 *)
-bTriggerAck      := (g_StatusFlags AND 16#0020) <> 0; (* Bit 5 *)
+(* 1. DECODIFICAÇÃO DE STATUS DA VISÃO *)
+bSystemOK        := (g_StatusFlags AND 16#0001) <> 0; (* Bit 0: Sistema OK *)
+bInspectionError := (g_StatusFlags AND 16#0002) <> 0; (* Bit 1: Erro de inspeção *)
+bTriggerAck      := (g_StatusFlags AND 16#0020) <> 0; (* Bit 5: Confirmação de foto concluída *)
 
 (* 2. IDENTIFICAÇÃO DA CLASSE (Classe 1 = Peça Vermelha) *)
 bIsRedPart := (g_ClassID = 1);
 
-(* 3. CONTAGEM ACUMULADA NA CONCLUSÃO DA FOTO (BORDA DE SUBIDA DO TRIGGER ACK) *)
+(* 3. CONTABILIZAÇÃO E SOMATÓRIA ACUMULADA NO CLP NA BORDA DA FOTO *)
 IF bTriggerAck AND NOT bTriggerAckOld THEN
-    (* A foto foi processada com sucesso *)
+    (* Na borda de subida do Ack, a câmera concluiu o processamento da foto *)
     IF bIsRedPart THEN
-        nRedPartsInFrame := g_ObjectCount;
-        nRedPartsCount   := nRedPartsCount + nRedPartsInFrame; (* Soma ao contador total *)
+        nPartsInCurrentPhoto := g_ObjectCount; (* Lê a contagem da foto atual *)
+        nTotalRedPartsCount  := nTotalRedPartsCount + nPartsInCurrentPhoto; (* SOMATÓRIA ACUMULADA NO CLP *)
     ELSE
-        nRedPartsInFrame := 0;
+        nPartsInCurrentPhoto := 0;
     END_IF
 END_IF
-bTriggerAckOld := bTriggerAck; (* Salva estado da borda *)
+bTriggerAckOld := bTriggerAck; (* Memória de borda *)
 
-(* 4. ZERAR O CONTADOR DE VERMELHAS (BOTÃO RESET DO OPERADOR) *)
-IF bResetRedCounter THEN
-    nRedPartsCount   := 0;
-    nRedPartsInFrame := 0;
-    bResetRedCounter := FALSE;
+(* 4. RESETA A CONTABILIZAÇÃO ACUMULADA DO CLP QUANDO SOLICITADO *)
+IF bResetTotalCounter THEN
+    nTotalRedPartsCount  := 0;
+    nPartsInCurrentPhoto := 0;
+    bResetTotalCounter   := FALSE;
 END_IF
 
-(* 5. SELEÇÃO DE RECEITA E DISPARO DE FOTO (HANDSHAKE) *)
+(* 5. SELEÇÃO DE RECEITA E DISPARO DE FOTO COM HANDSHAKE *)
 g_RecipeCmd := nRecipeToSelect;
 
 IF bStartInspection THEN
-    g_TriggerCmd := 1; (* Envia o pulso de disparo *)
+    g_TriggerCmd := 1; (* Envia o pulso PROFINET para a câmera tirar a foto *)
     
     IF bTriggerAck THEN
         g_TriggerCmd := 0;
-        bStartInspection := FALSE; (* Finaliza o ciclo de disparo *)
+        bStartInspection := FALSE; (* Conclui o disparo *)
     END_IF
 ELSE
     g_TriggerCmd := 0;
 END_IF
 
-(* 6. RESET DE FALHA DA VISÃO *)
+(* 6. RESET DE FALHAS DA CÂMERA *)
 IF bResetFaultCmd THEN
     g_ResetFault := 1;
     bResetFaultCmd := FALSE;
