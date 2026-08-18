@@ -3,151 +3,475 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROFINET Vision System - Raspberry Pi</title>
+    <title>DAMATTA GSDML - PROFINET Vision & HMI System</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Cabeçalho Principal -->
     <header class="header">
         <div class="brand">
             <span class="logo-icon">👁️</span>
             <div>
-                <h1>DAMATTA GSDML Vision System</h1>
-                <p class="subtitle">Raspberry Pi PROFINET IO-Device & Industrial Vision</p>
+                <h1>DAMATTA Vision System</h1>
+                <p class="subtitle">Raspberry Pi PROFINET IO-Device & Calibração de Visão</p>
             </div>
         </div>
+
+        <!-- Navegação de Abas -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="tab-operation">📺 Visão & Calibração</button>
+            <button class="tab-btn" data-tab="tab-profinet">📖 Mapeamento PROFINET & CLP</button>
+            <button class="tab-btn" data-tab="tab-network">⚙️ Configuração de Rede & IP</button>
+        </nav>
+
         <div class="system-badges">
-            <div class="badge" id="badge-ready"><span class="dot"></span> READY</div>
-            <div class="badge" id="badge-pass"><span class="dot"></span> PASS</div>
-            <div class="badge" id="badge-target"><span class="dot"></span> TARGET FOUND</div>
-            <div class="badge" id="badge-profinet"><span class="dot"></span> PROFINET ONLINE</div>
+            <div class="badge badge-ready" id="badge-ready"><span class="dot"></span> READY</div>
+            <div class="badge badge-pass" id="badge-pass"><span class="dot"></span> PASS</div>
+            <div class="badge badge-target" id="badge-target"><span class="dot"></span> TARGET</div>
+            <div class="badge badge-profinet" id="badge-profinet"><span class="dot"></span> PROFINET ONLINE</div>
         </div>
     </header>
 
-    <main class="dashboard-grid">
-        <!-- Coluna Esquerda: Stream de Vídeo e Canvas ROI -->
-        <section class="card stream-card">
-            <div class="card-header">
-                <h2>📹 Monitoramento e Calibração ao Vivo</h2>
-                <span class="fps-counter">640x480 @ 30 FPS</span>
-            </div>
-            <div class="video-container" id="video-container">
-                <img id="mjpeg-stream" src="/api/stream" alt="Video Stream">
-                <canvas id="roi-canvas" width="640" height="480"></canvas>
-            </div>
-            <div class="stream-toolbar">
-                <button id="btn-draw-roi" class="btn btn-secondary">✏️ Desenhar ROI</button>
-                <button id="btn-clear-roi" class="btn btn-outline">🔄 Redefinir ROI</button>
-                <span class="hint">Clique e arraste sobre a imagem para definir a Região de Interesse.</span>
-            </div>
-        </section>
+    <main class="content-container">
+        <!-- =================================================================== -->
+        <!-- ABA 1: VISÃO, CALIBRAÇÃO E CONFIGURAÇÃO DE RECEITA                  -->
+        <!-- =================================================================== -->
+        <div class="tab-pane active" id="tab-operation">
+            <div class="dashboard-grid">
+                <!-- Coluna Esquerda: Stream de Vídeo, Canvas e Calibração -->
+                <div class="left-column">
+                    <section class="card stream-card">
+                        <div class="card-header">
+                            <h2>📹 Monitoramento e Inspeção ao Vivo</h2>
+                            <span class="fps-counter">640x480 @ 30 FPS</span>
+                        </div>
+                        
+                        <div class="video-wrapper">
+                            <img id="mjpeg-stream" src="/api/stream" alt="Video Stream">
+                            <canvas id="roi-canvas" width="640" height="480"></canvas>
+                        </div>
 
-        <!-- Coluna Direita: Controles de Inspeção e Receita -->
-        <section class="card controls-card">
-            <div class="card-header">
-                <h2>🎛️ Configuração de Receita</h2>
-                <select id="recipe-select" class="select-input">
-                    <!-- Opções de Receita serão carregadas dinamicamente -->
-                </select>
+                        <div class="stream-toolbar">
+                            <div class="tool-group">
+                                <button id="btn-draw-roi" class="btn btn-secondary active">✏️ Desenhar ROI</button>
+                                <button id="btn-calibrate-line" class="btn btn-secondary">📏 Medir Escala (px/mm)</button>
+                                <button id="btn-full-roi" class="btn btn-outline">🔲 ROI Total (640x480)</button>
+                            </div>
+                            <span class="hint-text" id="canvas-hint">Clique e arraste sobre o vídeo para desenhar o retângulo de inspeção (ROI).</span>
+                        </div>
+                    </section>
+
+                    <!-- Painel de Calibração Dimensional (Pixel -> mm) -->
+                    <section class="card calibration-card">
+                        <div class="card-header">
+                            <h2>📐 Calibração Dimensional (Escala Pixel / Milímetro)</h2>
+                            <span class="scale-display">Escala Atual: <strong id="val-current-scale">10.00</strong> px/mm</span>
+                        </div>
+
+                        <div class="calibration-controls">
+                            <div class="input-field">
+                                <label>Distância Medida no Canvas (Pixels)</label>
+                                <input type="number" id="input-px-dist" class="text-input" placeholder="Ex: 500" value="100.0" step="0.1">
+                            </div>
+                            <div class="input-field">
+                                <label>Distância Real Correspondente (mm)</label>
+                                <input type="number" id="input-mm-dist" class="text-input" placeholder="Ex: 50.0" value="10.0" step="0.1">
+                            </div>
+                            <div class="input-field btn-field">
+                                <button id="btn-save-scale" class="btn btn-primary">📐 Aplicar & Salvar Calibração</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Coluna Direita: Editor Avançado de Receitas -->
+                <div class="right-column">
+                    <section class="card recipe-card">
+                        <div class="card-header">
+                            <h2>🎛️ Gerenciador de Receitas de Inspeção</h2>
+                            <div class="recipe-selector-header">
+                                <select id="recipe-select" class="select-input"></select>
+                                <button id="btn-new-recipe" class="btn btn-icon" title="Criar Nova Receita">➕ Nova</button>
+                                <button id="btn-delete-recipe" class="btn btn-icon btn-danger" title="Excluir Receita">🗑️ Excluir</button>
+                            </div>
+                        </div>
+
+                        <div class="recipe-form">
+                            <div class="form-row">
+                                <div class="input-field flex-2">
+                                    <label>Nome da Receita</label>
+                                    <input type="text" id="recipe-name" class="text-input" placeholder="Ex: Inspeção Peças Vermelhas">
+                                </div>
+                                <div class="input-field flex-1">
+                                    <label>Classe PROFINET (ID)</label>
+                                    <select id="recipe-class-id" class="select-input">
+                                        <option value="1">Classe 1 - Peça Vermelha 🔴</option>
+                                        <option value="2">Classe 2 - Peça Verde 🟢</option>
+                                        <option value="3">Classe 3 - Peça Azul 🔵</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Descrição da Inspeção</label>
+                                <input type="text" id="recipe-desc" class="text-input" placeholder="Filtro HSV e contagem para controle do CLP">
+                            </div>
+
+                            <!-- Presets Rápidos de Cor -->
+                            <div class="color-presets">
+                                <label>Presets Rápidos de Cor:</label>
+                                <div class="preset-buttons">
+                                    <button class="btn-preset red" data-preset="red">🔴 Vermelho</button>
+                                    <button class="btn-preset green" data-preset="green">🟢 Verde</button>
+                                    <button class="btn-preset blue" data-preset="blue">🔵 Azul</button>
+                                    <button class="btn-preset custom" data-preset="custom">🎨 Custom</button>
+                                </div>
+                            </div>
+
+                            <!-- Controles de Cor HSV -->
+                            <div class="hsv-box">
+                                <h3>🎨 Segmentação de Cor HSV (Hue, Saturation, Value)</h3>
+                                
+                                <div class="slider-row">
+                                    <div class="slider-info">
+                                        <span>Matiz (Hue - Cor):</span>
+                                        <span class="slider-val"><strong id="val-h-min">0</strong> - <strong id="val-h-max">10</strong></span>
+                                    </div>
+                                    <div class="range-dual">
+                                        <input type="range" id="h-min" min="0" max="180" value="0">
+                                        <input type="range" id="h-max" min="0" max="180" value="10">
+                                    </div>
+                                </div>
+
+                                <div class="slider-row">
+                                    <div class="slider-info">
+                                        <span>Saturação (Sat - Pureza):</span>
+                                        <span class="slider-val"><strong id="val-s-min">100</strong> - <strong id="val-s-max">255</strong></span>
+                                    </div>
+                                    <div class="range-dual">
+                                        <input type="range" id="s-min" min="0" max="255" value="100">
+                                        <input type="range" id="s-max" min="0" max="255" value="255">
+                                    </div>
+                                </div>
+
+                                <div class="slider-row">
+                                    <div class="slider-info">
+                                        <span>Brilho (Value - Luz):</span>
+                                        <span class="slider-val"><strong id="val-v-min">100</strong> - <strong id="val-v-max">255</strong></span>
+                                    </div>
+                                    <div class="range-dual">
+                                        <input type="range" id="v-min" min="0" max="255" value="100">
+                                        <input type="range" id="v-max" min="0" max="255" value="255">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Filtros de Área e Contagem -->
+                            <div class="form-row">
+                                <div class="input-field">
+                                    <label>Área Mínima (px²)</label>
+                                    <input type="number" id="recipe-min-area" class="text-input" value="200">
+                                </div>
+                                <div class="input-field">
+                                    <label>Área Máxima (px²)</label>
+                                    <input type="number" id="recipe-max-area" class="text-input" value="100000">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="input-field">
+                                    <label>Contagem Mínima (PASS)</label>
+                                    <input type="number" id="min-count" class="text-input" value="1">
+                                </div>
+                                <div class="input-field">
+                                    <label>Contagem Máxima (PASS)</label>
+                                    <input type="number" id="max-count" class="text-input" value="50">
+                                </div>
+                            </div>
+
+                            <!-- Coordenadas da ROI -->
+                            <div class="roi-coords-box">
+                                <label>Região de Interesse (ROI): [X, Y, Largura, Altura]</label>
+                                <div class="roi-inputs">
+                                    <input type="number" id="roi-x" class="text-input sm" value="20">
+                                    <input type="number" id="roi-y" class="text-input sm" value="20">
+                                    <input type="number" id="roi-w" class="text-input sm" value="600">
+                                    <input type="number" id="roi-h" class="text-input sm" value="440">
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button id="btn-save-recipe" class="btn btn-primary">💾 Salvar Receita</button>
+                                <button id="btn-apply-recipe" class="btn btn-success">▶️ Ativar no RPi</button>
+                                <button id="btn-test-trigger" class="btn btn-warning">📷 Disparar Foto (Trigger)</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
             </div>
 
-            <div class="control-group">
-                <label>Nome da Receita</label>
-                <input type="text" id="recipe-name" class="text-input" value="Nova Receita">
-            </div>
+            <!-- Painel de Telemetria PROFINET em Tempo Real -->
+            <section class="card telemetry-card full-width">
+                <div class="card-header">
+                    <h2>⚡ Telemetria I/O PROFINET em Tempo Real (Memória Compartilhada POSIX)</h2>
+                    <span class="heartbeat-counter">Heartbeat IPC: <strong id="val-heartbeat">0</strong></span>
+                </div>
 
-            <div class="hsv-sliders">
-                <h3>🎨 Segmentação de Cor HSV</h3>
-                
-                <div class="slider-row">
-                    <label>Hue (Matiz): <span id="val-h-min">0</span> - <span id="val-h-max">180</span></label>
-                    <div class="range-dual">
-                        <input type="range" id="h-min" min="0" max="180" value="0">
-                        <input type="range" id="h-max" min="0" max="180" value="180">
+                <div class="telemetry-grid">
+                    <div class="telemetry-box">
+                        <span class="box-label">Status Flags (Hex)</span>
+                        <span class="box-value mono" id="val-status-flags">0x0001</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Classe Detectada</span>
+                        <span class="box-value" id="val-class-id">0</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Contagem de Objetos</span>
+                        <span class="box-value" id="val-object-count">0</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Posição X (mm)</span>
+                        <span class="box-value mono" id="val-pos-x">0.00</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Posição Y (mm)</span>
+                        <span class="box-value mono" id="val-pos-y">0.00</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Ângulo (°)</span>
+                        <span class="box-value mono" id="val-angle">0.00°</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Trigger PLC (Out Byte 0)</span>
+                        <span class="box-value" id="val-trigger-cmd">0</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="box-label">Receita Ativa (In Byte 18)</span>
+                        <span class="box-value" id="val-active-recipe">1</span>
                     </div>
                 </div>
+            </section>
+        </div>
 
-                <div class="slider-row">
-                    <label>Saturation (Saturação): <span id="val-s-min">50</span> - <span id="val-s-max">255</span></label>
-                    <div class="range-dual">
-                        <input type="range" id="s-min" min="0" max="255" value="50">
-                        <input type="range" id="s-max" min="0" max="255" value="255">
+        <!-- =================================================================== -->
+        <!-- ABA 2: MAPEAMENTO E/S PROFINET & CÓDIGO DO CLP                      -->
+        <!-- =================================================================== -->
+        <div class="tab-pane" id="tab-profinet">
+            <div class="profinet-page-grid">
+                <!-- Tabela de Entradas PROFINET -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>📥 Módulo de Entradas (Slot 1: 20 Bytes In - Visão ➔ CLP)</h2>
                     </div>
-                </div>
-
-                <div class="slider-row">
-                    <label>Value (Brilho): <span id="val-v-min">50</span> - <span id="val-v-max">255</span></label>
-                    <div class="range-dual">
-                        <input type="range" id="v-min" min="0" max="255" value="50">
-                        <input type="range" id="v-max" min="0" max="255" value="255">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Byte Offset</th>
+                                    <th>Endereço PLC</th>
+                                    <th>Tipo de Dado</th>
+                                    <th>Nome da Variável</th>
+                                    <th>Descrição / Função</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>0..1</td>
+                                    <td><code>%IW0</code></td>
+                                    <td><code>UINT</code></td>
+                                    <td><code>g_StatusFlags</code></td>
+                                    <td>Bits de Status (Bit 0: Ready, Bit 1: Target, Bit 2: Pass, Bit 5: Trigger Ack)</td>
+                                </tr>
+                                <tr>
+                                    <td>2..3</td>
+                                    <td><code>%IW2</code></td>
+                                    <td><code>UINT</code></td>
+                                    <td><code>g_ClassID</code></td>
+                                    <td>ID da Classe (1 = Peça Vermelha, 2 = Verde, 3 = Azul)</td>
+                                </tr>
+                                <tr>
+                                    <td>4..5</td>
+                                    <td><code>%IW4</code></td>
+                                    <td><code>UINT</code></td>
+                                    <td><code>g_ObjectCount</code></td>
+                                    <td>Quantidade total de objetos inspecionados na foto</td>
+                                </tr>
+                                <tr>
+                                    <td>6..9</td>
+                                    <td><code>%ID6</code></td>
+                                    <td><code>REAL</code></td>
+                                    <td><code>g_PosX_mm</code></td>
+                                    <td>Posição X do centroide em milímetros no mundo real</td>
+                                </tr>
+                                <tr>
+                                    <td>10..13</td>
+                                    <td><code>%ID10</code></td>
+                                    <td><code>REAL</code></td>
+                                    <td><code>g_PosY_mm</code></td>
+                                    <td>Posição Y do centroide em milímetros no mundo real</td>
+                                </tr>
+                                <tr>
+                                    <td>14..17</td>
+                                    <td><code>%ID14</code></td>
+                                    <td><code>REAL</code></td>
+                                    <td><code>g_Angle_deg</code></td>
+                                    <td>Ângulo de rotação da peça em graus (-180.0° a +180.0°)</td>
+                                </tr>
+                                <tr>
+                                    <td>18..19</td>
+                                    <td><code>%IW18</code></td>
+                                    <td><code>UINT</code></td>
+                                    <td><code>g_ActiveRecipe</code></td>
+                                    <td>ID da receita em execução ativa no Raspberry Pi</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <div class="count-limits">
-                <h3>🔢 Limites de Contagem de Objetos</h3>
-                <div class="inputs-inline">
-                    <div>
-                        <label>Mínimo</label>
-                        <input type="number" id="min-count" class="text-input" value="1" min="0">
+                <!-- Tabela de Saídas PROFINET -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>📤 Módulo de Saídas (Slot 2: 6 Bytes Out - CLP ➔ Visão)</h2>
                     </div>
-                    <div>
-                        <label>Máximo</label>
-                        <input type="number" id="max-count" class="text-input" value="10" min="1">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Byte Offset</th>
+                                    <th>Endereço PLC</th>
+                                    <th>Tipo de Dado</th>
+                                    <th>Nome da Variável</th>
+                                    <th>Descrição / Função</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>0</td>
+                                    <td><code>%QB0</code></td>
+                                    <td><code>BYTE / USINT</code></td>
+                                    <td><code>g_TriggerCmd</code></td>
+                                    <td>Comando de disparo (1 = Tirar foto e processar inspeção)</td>
+                                </tr>
+                                <tr>
+                                    <td>1</td>
+                                    <td><code>%QB1</code></td>
+                                    <td><code>BYTE / USINT</code></td>
+                                    <td><code>g_RecipeCmd</code></td>
+                                    <td>Comando de troca de receita enviada pelo CLP</td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td><code>%QB2</code></td>
+                                    <td><code>BYTE / USINT</code></td>
+                                    <td><code>g_ModeCmd</code></td>
+                                    <td>Modo de operação (0 = Automático, 1 = Calibração)</td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td><code>%QB3</code></td>
+                                    <td><code>BYTE / USINT</code></td>
+                                    <td><code>g_ResetFault</code></td>
+                                    <td>Comando de Reset de Alarmes/Falhas da visão</td>
+                                </tr>
+                                <tr>
+                                    <td>4..5</td>
+                                    <td><code>%QW4</code></td>
+                                    <td><code>WORD / UINT</code></td>
+                                    <td><code>g_Reserved</code></td>
+                                    <td>Reservado para expansão futura</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <div class="action-buttons">
-                <button id="btn-save-recipe" class="btn btn-primary">💾 Salvar Receita</button>
-                <button id="btn-apply-recipe" class="btn btn-success">▶️ Ativar Receita</button>
-            </div>
-        </section>
+                <!-- Detalhamento de Status Flags e Classes -->
+                <div class="two-columns">
+                    <section class="card">
+                        <div class="card-header">
+                            <h2>🚩 Mapeamento de Bits de StatusFlags (UINT)</h2>
+                        </div>
+                        <ul class="bit-list">
+                            <li><strong>Bit 0 (0x0001):</strong> <code>STATUS_FLAG_READY</code> - Sistema de Visão Pronto</li>
+                            <li><strong>Bit 1 (0x0002):</strong> <code>STATUS_FLAG_TARGET_FOUND</code> - Objeto Localizado</li>
+                            <li><strong>Bit 2 (0x0004):</strong> <code>STATUS_FLAG_PASS</code> - Inspeção Aprovada (OK)</li>
+                            <li><strong>Bit 3 (0x0008):</strong> <code>STATUS_FLAG_FAIL</code> - Inspeção Reprovada (NOK)</li>
+                            <li><strong>Bit 4 (0x0010):</strong> <code>STATUS_FLAG_PROCESSING</code> - Inspeção em Processamento</li>
+                            <li><strong>Bit 5 (0x0020):</strong> <code>STATUS_FLAG_TRIGGER_ACK</code> - Confirmação do Disparo (Handshake)</li>
+                        </ul>
+                    </section>
 
-        <!-- Painel de Telemetria PROFINET em Tempo Real -->
-        <section class="card telemetry-card full-width">
-            <div class="card-header">
-                <h2>⚡ Telemetria I/O PROFINET (Memória Compartilhada POSIX)</h2>
-                <span class="heartbeat-counter">Heartbeat IPC: <strong id="val-heartbeat">0</strong></span>
+                    <section class="card">
+                        <div class="card-header">
+                            <h2>🎨 Mapeamento de Classes de Cor (ClassID)</h2>
+                        </div>
+                        <ul class="bit-list">
+                            <li>🔴 <strong>Classe 1:</strong> Peça Vermelha (HSV 0..10 / S:100..255 / V:100..255)</li>
+                            <li>🟢 <strong>Classe 2:</strong> Peça Verde (HSV 35..85 / S:100..255 / V:100..255)</li>
+                            <li>🔵 <strong>Classe 3:</strong> Peça Azul (HSV 100..130 / S:100..255 / V:100..255)</li>
+                        </ul>
+                    </section>
+                </div>
             </div>
+        </div>
 
-            <div class="telemetry-grid">
-                <div class="telemetry-box">
-                    <span class="box-label">Status Flags (Hex)</span>
-                    <span class="box-value mono" id="val-status-flags">0x0001</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Classe Detectada</span>
-                    <span class="box-value" id="val-class-id">0</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Contagem de Objetos</span>
-                    <span class="box-value" id="val-object-count">0</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Posição X (mm)</span>
-                    <span class="box-value mono" id="val-pos-x">0.00</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Posição Y (mm)</span>
-                    <span class="box-value mono" id="val-pos-y">0.00</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Ângulo (°)</span>
-                    <span class="box-value mono" id="val-angle">0.00°</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Trigger PLC (Out Byte 0)</span>
-                    <span class="box-value" id="val-trigger-cmd">0</span>
-                </div>
-                <div class="telemetry-box">
-                    <span class="box-label">Receita Ativa (In Byte 18)</span>
-                    <span class="box-value" id="val-active-recipe">1</span>
-                </div>
+        <!-- =================================================================== -->
+        <!-- ABA 3: CONFIGURAÇÃO DE REDE & IP                                    -->
+        <!-- =================================================================== -->
+        <div class="tab-pane" id="tab-network">
+            <div class="network-page-grid">
+                <section class="card">
+                    <div class="card-header">
+                        <h2>🌐 Configuração de Rede do Raspberry Pi</h2>
+                        <span class="badge badge-ready">Interface Ethernet (eth0)</span>
+                    </div>
+
+                    <div class="network-form">
+                        <div class="form-row">
+                            <div class="input-field">
+                                <label>Nome do Host (Hostname)</label>
+                                <input type="text" id="net-hostname" class="text-input" value="rpi-vision-device" readonly>
+                            </div>
+                            <div class="input-field">
+                                <label>Nome da Estação PROFINET</label>
+                                <input type="text" id="net-pn-station" class="text-input" value="rpi-vision-device" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-field">
+                                <label>Endereço IP Estático</label>
+                                <input type="text" id="net-ip" class="text-input" value="192.168.0.231" placeholder="Ex: 192.168.0.231">
+                            </div>
+                            <div class="input-field">
+                                <label>Máscara de Sub-rede</label>
+                                <input type="text" id="net-mask" class="text-input" value="255.255.255.0" placeholder="Ex: 255.255.255.0">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-field">
+                                <label>Gateway Padrão</label>
+                                <input type="text" id="net-gateway" class="text-input" value="192.168.0.1" placeholder="Ex: 192.168.0.1">
+                            </div>
+                            <div class="input-field btn-field">
+                                <button id="btn-save-network" class="btn btn-primary">💾 Salvar e Aplicar Rede</button>
+                            </div>
+                        </div>
+
+                        <div class="network-info-box">
+                            <h3>ℹ️ Orientações para Conexão com o CLP Altus</h3>
+                            <p>O Raspberry Pi deve estar na mesma faixa de IP do CLP Altus NX325/XP325 (por exemplo, CLP em <code>192.168.0.10</code> e Raspberry Pi em <code>192.168.0.231</code> com máscara <code>255.255.255.0</code>).</p>
+                        </div>
+                    </div>
+                </section>
             </div>
-        </section>
+        </div>
     </main>
 
     <script src="/static/js/app.js"></script>

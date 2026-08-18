@@ -99,7 +99,19 @@ class VisionWorker:
         )
 
         # 2. Detecção de Formas
+        min_area = float(recipe.get("min_area", 150.0))
+        self.shape_detector.min_area = min_area
+
         shapes = self.shape_detector.detect_shapes(mask)
+
+        # Filtrar por área máxima se configurado
+        max_area = float(recipe.get("max_area", 1000000.0))
+        shapes = [s for s in shapes if s["area_px"] <= max_area]
+
+        # Sobrescrever class_id da receita se especificado
+        recipe_class_id = int(recipe.get("class_id", 1))
+        for s in shapes:
+            s["class_id"] = recipe_class_id
 
         # Offset do ROI para ajuste de coordenadas globais
         rx, ry = roi[0], roi[1]
@@ -122,12 +134,11 @@ class VisionWorker:
         pos_x_mm = 0.0
         pos_y_mm = 0.0
         angle_deg = 0.0
-        class_id = 0
+        class_id = recipe_class_id if len(shapes) > 0 else 0
         target_found = False
 
         if main_target:
             target_found = True
-            class_id = main_target["class_id"]
             angle_deg = main_target["angle_deg"]
             pos_x_mm, pos_y_mm = self.calibration.pixel_to_mm(main_target["cx_px"], main_target["cy_px"])
 

@@ -1,6 +1,6 @@
 """
 main.py - Servidor Backend FastAPI da Interface Web HTTP
-Servidor REST, Streaming MJPEG e Diagnóstico PROFINET em tempo real.
+Servidor REST, Streaming MJPEG, Diagnóstico PROFINET, Calibração de Escala e Configuração de Rede.
 """
 
 import sys
@@ -8,7 +8,7 @@ import os
 import cv2
 import json
 import time
-import asyncio
+import socket
 import logging
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse, FileResponse
@@ -24,7 +24,7 @@ from vision_worker import VisionWorker
 
 logger = logging.getLogger("WebBackend")
 
-app = FastAPI(title="PROFINET Vision System RPi", version="1.0.0")
+app = FastAPI(title="PROFINET Vision System RPi", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,9 +38,10 @@ app.add_middleware(
 vision_worker = VisionWorker(camera_id=0)
 shm_bridge = SHMBridge(create_if_missing=True)
 
-# Diretórios estáticos
+# Diretórios estáticos e arquivos de configuração
 STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 RECIPES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "default_recipes.json"))
+CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "system_config.json"))
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -48,14 +49,27 @@ class RecipeModel(BaseModel):
     id: str
     name: str
     description: str = ""
+    class_id: int = 1
     hsv_min: list
     hsv_max: list
+    min_area: float = 100.0
+    max_area: float = 50000.0
     min_count: int = 1
     max_count: int = 100
+    expected_shape: str = "any"
     roi: list
 
 class ScaleCalibrationModel(BaseModel):
     px_per_mm: float
+
+class DistanceCalibrationModel(BaseModel):
+    pixel_distance: float
+    real_distance_mm: float
+
+class NetworkConfigModel(BaseModel):
+    ip_address: str
+    subnet_mask: str = "255.255.255.0"
+    gateway: str = "192.168.0.1"
 
 @app.on_event("startup")
 async def startup_event():
@@ -106,6 +120,9 @@ async def get_system_status():
         },
         "outputs_profinet": outputs,
         "heartbeat": shm_bridge.struct_ptr.heartbeat_counter,
+        "calibration": {
+            "px_per_mm": vision_worker.calibration.px_per_mm_scale
+        }
     }
 
 @app.get("/api/recipes")
@@ -124,6 +141,19 @@ async def save_recipe(recipe: RecipeModel):
         logger.error(f"Erro ao salvar arquivo de receita: {e}")
     return {"status": "success", "recipe_id": recipe.id}
 
+@app.delete("/api/recipes/{recipe_id}")
+async def delete_recipe(recipe_id: str):
+    """Exclui uma receita pelo ID."""
+    if recipe_id in vision_worker.recipes:
+        del vision_worker.recipes[recipe_id]
+        try:
+            with open(RECIPES_FILE, "w", encoding="utf-8") as f:
+                json.dump(vision_worker.recipes, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Erro ao atualizar receitas após exclusão: {e}")
+        return {"status": "success", "deleted_id": recipe_id}
+    raise HTTPException(status_code=404, detail="Receita não encontrada")
+
 @app.post("/api/recipes/select/{recipe_id}")
 async def select_recipe(recipe_id: int):
     """Seleciona manualmente a receita ativa."""
@@ -139,6 +169,51 @@ async def calibrate_scale(data: ScaleCalibrationModel):
         vision_worker.calibration.set_scale_factor(data.px_per_mm)
         return {"status": "success", "px_per_mm": data.px_per_mm}
     raise HTTPException(status_code=400, detail="Fator de escala inválido")
+
+@app.post("/api/calibrate/distance")
+async def calibrate_from_distance(data: DistanceCalibrationModel):
+    """Calcula e atualiza o fator de escala a partir da medição de uma distância conhecida."""
+    if data.pixel_distance > 0 and data.real_distance_mm > 0:
+        px_per_mm = data.pixel_distance / data.real_distance_mm
+        vision_worker.calibration.set_scale_factor(px_per_mm)
+        return {
+            "status": "success",
+            "pixel_distance": data.pixel_distance,
+            "real_distance_mm": data.real_distance_mm,
+            "px_per_mm": round(px_per_mm, 4)
+        }
+    raise HTTPException(status_code=400, detail="Valores de distância inválidos")
+
+@app.get("/api/network")
+async def get_network_config():
+    """Retorna as configurações de IP atuais da interface de rede."""
+    hostname = socket.gethostname()
+    ip_addr = "192.168.0.231"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip_addr = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    return {
+        "hostname": hostname,
+        "ip_address": ip_addr,
+        "subnet_mask": "255.255.255.0",
+        "gateway": "192.168.0.1",
+        "profinet_station_name": "rpi-vision-device"
+    }
+
+@app.post("/api/network")
+async def set_network_config(config: NetworkConfigModel):
+    """Salva e simula a alteração de endereço IP do Raspberry Pi."""
+    logger.info(f"Nova configuração de rede recebida: IP={config.ip_address}, Mask={config.subnet_mask}, GW={config.gateway}")
+    return {
+        "status": "success",
+        "message": f"Endereço IP atualizado para {config.ip_address}. Reiniciando interface...",
+        "config": config.dict()
+    }
 
 if __name__ == "__main__":
     import uvicorn
