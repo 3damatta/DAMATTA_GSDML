@@ -1,6 +1,6 @@
 """
 main.py - Servidor Backend FastAPI da Interface Web HTTP
-Servidor REST, Streaming MJPEG, Diagnóstico PROFINET, Calibração de Escala e Configuração de Rede.
+Servidor REST, Streaming MJPEG, Diagnóstico PROFINET, Calibração de Escala, Configuração de Rede e Atualização Automática via GitHub.
 """
 
 import sys
@@ -9,6 +9,7 @@ import cv2
 import json
 import time
 import socket
+import subprocess
 import logging
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse, FileResponse
@@ -24,7 +25,7 @@ from vision_worker import VisionWorker
 
 logger = logging.getLogger("WebBackend")
 
-app = FastAPI(title="PROFINET Vision System RPi", version="2.0.0")
+app = FastAPI(title="PROFINET Vision System RPi", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +42,7 @@ shm_bridge = SHMBridge(create_if_missing=True)
 # Diretórios estáticos e arquivos de configuração
 STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 RECIPES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "default_recipes.json"))
-CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "system_config.json"))
+REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -214,6 +215,43 @@ async def set_network_config(config: NetworkConfigModel):
         "message": f"Endereço IP atualizado para {config.ip_address}. Reiniciando interface...",
         "config": config.dict()
     }
+
+@app.get("/api/system/update-check")
+async def check_github_updates():
+    """Verifica se existem novos commits no repositório GitHub remoto."""
+    try:
+        subprocess.run(["git", "fetch"], cwd=REPO_DIR, check=True, capture_output=True, text=True)
+        res = subprocess.run(["git", "status", "-uno"], cwd=REPO_DIR, check=True, capture_output=True, text=True)
+        output = res.stdout
+        
+        has_updates = "behind" in output.lower() or "atrás" in output.lower()
+        return {
+            "status": "success",
+            "has_updates": has_updates,
+            "message": "Novas atualizações disponíveis no GitHub!" if has_updates else "Sistema atualizado."
+        }
+    except Exception as e:
+        logger.error(f"Erro ao verificar atualizações do Git: {e}")
+        return {"status": "error", "has_updates": False, "message": str(e)}
+
+@app.post("/api/system/update")
+async def perform_github_update():
+    """Executa o git pull origin main e recarrega os arquivos do sistema."""
+    try:
+        res = subprocess.run(["git", "pull", "origin", "main"], cwd=REPO_DIR, check=True, capture_output=True, text=True)
+        logger.info(f"Git pull executado com sucesso: {res.stdout}")
+        
+        # Reload recipes from disk
+        vision_worker.recipes = vision_worker._load_recipes()
+        
+        return {
+            "status": "success",
+            "message": "Sistema atualizado com sucesso a partir do GitHub!",
+            "output": res.stdout
+        }
+    except Exception as e:
+        logger.error(f"Erro ao executar git pull: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro na atualização do Git: {e}")
 
 if __name__ == "__main__":
     import uvicorn

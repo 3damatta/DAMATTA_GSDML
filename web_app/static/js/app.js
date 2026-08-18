@@ -491,6 +491,35 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // =========================================================================
+    // ATUALIZAÇÃO AUTOMÁTICA VIA GITHUB
+    // =========================================================================
+    const btnGithubUpdate = document.getElementById("btn-github-update");
+    if (btnGithubUpdate) {
+        btnGithubUpdate.addEventListener("click", async () => {
+            if (confirm("Deseja buscar e instalar as últimas atualizações do repositório GitHub no Raspberry Pi?")) {
+                btnGithubUpdate.textContent = "⏳ Atualizando...";
+                btnGithubUpdate.disabled = true;
+
+                try {
+                    const res = await fetch("/api/system/update", { method: "POST" });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert(`✅ Atualização Concluída!\n\n${data.message}`);
+                        location.reload();
+                    } else {
+                        alert(`❌ Erro ao atualizar: ${data.detail || data.message}`);
+                    }
+                } catch (err) {
+                    alert(`❌ Falha na conexão de atualização: ${err}`);
+                } finally {
+                    btnGithubUpdate.textContent = "🔄 Atualizar pelo GitHub";
+                    btnGithubUpdate.disabled = false;
+                }
+            }
+        });
+    }
+
     // Inicialização
     loadRecipes();
     loadNetworkConfig();
