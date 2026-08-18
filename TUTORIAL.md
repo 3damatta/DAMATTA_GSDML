@@ -1,151 +1,53 @@
-# Tutorial Completo de Configuração, Programação e Uso: DAMATTA GSDML
+# Guia de Operação e Arquitetura - DAMATTA Vision Device
 
-Este guia fornece o passo a passo detalhado para instalar, configurar, programar no CODESYS e utilizar a solução industrial de visão computacional integrada via **PROFINET IO-Device** no Raspberry Pi.
-
----
-
-## 📋 1. Requisitos do Sistema
-
-### Hardware Necessário:
-* **Raspberry Pi 4 ou 5** (recomendado 2 GB+ RAM, rodando Raspberry Pi OS 64-bit).
-* **Câmera USB Industrial ou Webcam UVC** (resolução mínima 640x480).
-* **Cabo Ethernet RJ45** (conexão direta da porta `eth0` do RPi ao PLC ou Switch industrial).
-* **PLC / Controlador CODESYS** (ex: CODESYS Control Win V3, CODESYS em Raspberry Pi, Schneider, WAGO, Festo, Eaton, etc.).
-
-### Software Necessário:
-* **CODESYS Development System V3.5** (com pacote PROFINET Master instalado).
-* Navegador Web moderno (Chrome, Edge ou Firefox).
+Este documento descreve o funcionamento completo do **DAMATTA Vision Device**, incluindo o motor de visão computacional, a interface Web HMI, a pilha de comunicação PROFINET RT e o mapeamento IPC por memória compartilhada.
 
 ---
 
-## 🚀 2. Instalação Automatizada no Raspberry Pi
+## 🏗️ 1. Arquitetura da Solução
 
-Abra o terminal no seu Raspberry Pi e execute o comando único de instalação:
+O sistema é composto por 3 camadas integradas e desacopladas no Raspberry Pi:
 
-```bash
-# 1. Clonar o repositório oficial do GitHub
-git clone https://github.com/3damatta/DAMATTA_GSDML.git
-
-# 2. Entrar na pasta do projeto
-cd DAMATTA_GSDML
-
-# 3. Dar permissão e rodar a instalação automatizada
-sudo chmod +x scripts/setup_system.sh
-sudo ./scripts/setup_system.sh
+```mermaid
+graph TD
+    A["Câmera USB (V4L2 640x480 @ 30 FPS)"] --> B["vision_worker.py (OpenCV / Python)"]
+    B <--> C["Memória Compartilhada POSIX (/vision_profinet_shm)"]
+    C <--> D["profinet_app (Pilha C p-net)"]
+    D <--> E["CLP Altus NX325 / XP325 (PROFINET RT)"]
+    B <--> F["web_app (FastAPI / HTML5 Canvas / Port 8000)"]
 ```
 
-### O que o script realiza automaticamente:
-1. Instala dependências nativas (`cmake`, `build-essential`, `libopencv-dev`, `libv4l-dev`).
-2. Cria o ambiente virtual Python (`venv`) e instala os pacotes (`fastapi`, `uvicorn`, `opencv-python-headless`, `numpy`, `pyzbar`).
-3. Compila a aplicação PROFINET C (`profinet_app`).
-4. Atribui permissões de soquete Ethernet de camada 2 (`setcap cap_net_raw,cap_net_admin=eip`).
-5. Registra e inicia o serviço `systemd` (`profinet-vision.service`) no boot.
+1. **`vision_worker.py` (Motor OpenCV):** Captura imagens continuamente a 30 FPS, executa filtragem de cores HSV, detecção de contornos/formas geométricas, calcula a centroide $(X, Y)$ em milímetros e o ângulo da peça em graus.
+2. **`shm_common/vision_ipc.h` (Memória Compartilhada POSIX):** Permite troca instantânea de dados com zero-copy entre o motor Python e a pilha C PROFINET (`/vision_profinet_shm`).
+3. **`profinet_app` (Daemon C p-net):** Trata a comunicação determinística PROFINET RT no barramento Ethernet industrial, trocando **20 Bytes de Entrada** (Visão $\rightarrow$ CLP) e **6 Bytes de Saída** (CLP $\rightarrow$ Visão).
+4. **`web_app` (FastAPI / HTML5 Canvas):** Interface de usuário responsiva na porta `8000` para calibração ao vivo de HSV, ajuste visual da Região de Interesse (ROI) e diagnóstico.
 
 ---
 
-## 🛠️ 3. Configuração do Dispositivo no CODESYS
+## 📷 2. Classificação de Cores e Formas Geométricas
 
-### Passo 3.1: Importar o Descritor GSDML
-1. Abra o **CODESYS Development System**.
-2. Vá no menu superior: **Tools** $\rightarrow$ **Device Repository...**
-3. Clique no botão **Install...**.
-4. Navegue até a pasta do projeto e selecione o arquivo:
-   `DAMATTA_GSDML/gsdml/GSDML-V2.42-Custom-VisionDevice-20260814.xml`
-5. Confirme a instalação. O dispositivo aparecerá na categoria **Fieldbusses $\rightarrow$ PROFINET IO $\rightarrow$ I/O $\rightarrow$ Vision Systems $\rightarrow$ DAMATTA Automation**.
+O motor de visão classifica as peças de acordo com a tabela abaixo:
 
-### Passo 3.2: Adicionar o Dispositivo à Árvore do PLC
-1. Clique com o botão direito na interface Ethernet do seu PLC no CODESYS e selecione **Add Device**.
-2. Adicione um **PROFINET IO Master** (se ainda não houver).
-3. Sob o **PROFINET IO Master**, clique com o botão direito e selecione **Add Device**.
-4. Selecione o **Raspberry Pi Vision DAP** (`DAMATTA Automation`).
-
-### Passo 3.3: Configuração de Nome da Estação (Name of Station) e IP
-1. Dê um duplo clique no dispositivo **Raspberry Pi Vision DAP**.
-2. Na aba **PROFINET General**:
-   * **Station Name:** `rpi-vision-device`
-   * **IP Address:** Informe o mesmo IP da porta Ethernet do Raspberry Pi (ex: `192.168.1.50`).
-
-### Passo 3.4: Mapeamento de Variáveis de I/O em Structured Text (ST)
-
-Crie um programa `PRG_Vision_Control` em texto estruturado (ST) no CODESYS:
-
-```pascal
-PROGRAM PRG_Vision_Control
-VAR
-    // Saídas para a Visão (6 Bytes PLC -> RPi)
-    bTriggerCmd   AT %QB0 : BYTE;  // Offset 0: 1 = Disparo de Captura
-    bRecipeCmd    AT %QB1 : BYTE;  // Offset 1: ID da Receita Desejada (1, 2, 3...)
-    bModeCmd      AT %QB2 : BYTE;  // Offset 2: 0 = Auto, 1 = Calibração/Pausa
-    bResetFault   AT %QB3 : BYTE;  // Offset 3: 1 = Reset de Falha
-
-    // Entradas da Visão (20 Bytes RPi -> PLC)
-    wStatusFlags  AT %IW0 : WORD;  // Offset 0..1: Flags (Bit 0: Ready, Bit 1: Target, Bit 2: PASS, Bit 5: Trigger Ack)
-    wClassID      AT %IW2 : WORD;  // Offset 2..3: Classe Detectada (1=Círculo, 2=Retângulo, 3=Triângulo)
-    wObjectCount  AT %IW4 : WORD;  // Offset 4..5: Quantidade Contada
-    rPosX_mm      AT %ID6 : REAL;  // Offset 6..9: Posição X em mm
-    rPosY_mm      AT %ID10 : REAL; // Offset 10..13: Posição Y em mm
-    rAngleDeg     AT %ID14 : REAL; // Offset 14..17: Ângulo de Rotação (graus)
-    wActiveRecipe AT %IW18 : WORD; // Offset 18..19: Receita Ativa no RPi
-
-    // Variáveis Internas do PLC
-    bStartInspection : BOOL;
-    bInspectionDone  : BOOL;
-    bInspectionOK    : BOOL;
-END_VAR
-
-// -------------------------------------------------------------
-// Lógica de Disparo e Handshake Seguro (Edge Trigger & Ack)
-// -------------------------------------------------------------
-
-// Selecionar Receita 1
-bRecipeCmd := 1;
-bModeCmd   := 0; // Modo Automático
-
-// 1. Comando de Disparo
-IF bStartInspection AND NOT (wStatusFlags.5) THEN
-    bTriggerCmd := 1; // Envia o sinal de trigger para o RPi
-END_IF;
-
-// 2. Confirmação do Handshake (Trigger Ack do RPi)
-IF (wStatusFlags.5) THEN
-    bTriggerCmd := 0;      // Reseta a borda de disparo no PLC
-    bInspectionDone := TRUE;
-    
-    // Verificar resultado da Inspeção
-    bInspectionOK := (wStatusFlags.2); // Bit 2: PASS (OK)
-END_IF;
-```
+| ID da Classe (`ClassID`) | Cor Detectada | Faixa HSV Padrão | Aplicação Industrial |
+| :--- | :--- | :--- | :--- |
+| **`1`** | **Vermelho** | `H: 0-10, S: 100-255, V: 100-255` | Inspeção de Peças Vermelhas |
+| **`2`** | **Verde** | `H: 35-85, S: 100-255, V: 100-255` | Inspeção de Peças Verdes |
+| **`3`** | **Azul** | `H: 100-130, S: 100-255, V: 100-255` | Inspeção de Peças Azuis |
 
 ---
 
-## 🌐 4. Operação da Interface Web HTTP
+## 🌐 3. Endpoints da Interface Web HMI
 
-Abra o navegador em qualquer PC, Tablet ou Smartphone conectado à rede:
+Acesse a interface de calibração no navegador em `http://<IP_DO_RASPBERRY>:8000`:
 
-```text
-http://<IP_DO_RASPBERRY>:8000
-```
-
-### Funcionalidades do Painel Web:
-1. **Visualização ao Vivo:** Streaming MJPEG em $640\times 480$ 30 FPS com overlays de bounding boxes, centroides e labels de status.
-2. **Desenho de ROI (Região de Interesse):** Clique no botão **✏️ Desenhar ROI**, depois clique e arraste com o mouse sobre a imagem da câmera para limitar a área de inspeção.
-3. **Ajuste Fino de Cores HSV:** Utilize os sliders duplos de **Hue**, **Saturation** e **Value** para filtrar exatamente a cor do objeto desejado.
-4. **Gestão de Receitas:** Selecione receitas salvas, ajuste limites mínimos e máximos de contagem e clique em **💾 Salvar Receita** ou **▶️ Ativar Receita**.
-5. **Telemetria PROFINET em Tempo Real:** Acompanhe na tabela os 20 Bytes transmitidos para a memória compartilhada e para o PLC a cada 100 ms.
+- **`/`**: Dashboard principal com streaming de vídeo MJPEG, controles deslizantes de HSV e editor visual de ROI.
+- **`/api/status`**: Retorna os dados atuais da inspeção em formato JSON (status, contagem, $X, Y$, ângulo, receita).
+- **`/api/trigger`**: Executa um disparo manual de foto via HTTP REST.
+- **`/api/recipes`**: CRUD de receitas de inspeção (GET / POST / DELETE).
 
 ---
 
-## 🔍 5. Diagnóstico e Resolução de Problemas
+## 📖 4. Manuais Relacionados
 
-* **Verificar o Status do Serviço no Raspberry Pi:**
-  ```bash
-  sudo systemctl status profinet-vision.service
-  ```
-* **Ver logs em tempo real:**
-  ```bash
-  sudo journalctl -u profinet-vision.service -f
-  ```
-* **Testar a API REST manualmente:**
-  ```bash
-  curl http://localhost:8000/api/status
-  ```
+- 👉 **[Tutorial de Configuração no MasterTool IEC XE](TUTORIAL_MASTERTOOL_NEXUS325.md)**
+- 👉 **[Plano Arquitetural do Projeto](PLANO_DO_PROJETO.md)**

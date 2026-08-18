@@ -1,89 +1,183 @@
-# Tutorial Passo a Passo: Configuração PROFINET no MasterTool IEC XE / CODESYS 3.5 (Altus NX325 + Raspberry Pi)
+# Tutorial Passo a Passo: Configuração PROFINET no MasterTool IEC XE (Altus Nexto NX325 / XP325 + Raspberry Pi)
 
-Este tutorial detalha o procedimento idêntico ao fluxo de configuração do **CODESYS 3.5 & PROFINET**, adaptado para o **MasterTool IEC XE (Altus Nexto NX325)** e a câmera industrial **Raspberry Pi (DAMATTA Vision System)**.
-
----
-
-## 📋 Pré-requisitos
-1. **MasterTool IEC XE** v3.75 ou superior instalado no PC.
-2. CLP Altus **Nexto NX325** (ou similar da série Nexto) conectado na rede Ethernet.
-3. Arquivo descritor PROFINET: **`GSDML-V2.31-DAMATTA-VisionDevice-20260814.xml`**.
-4. Sistema de Visão (Raspberry Pi) executando o daemon `profinet_app` (p-net).
+Este tutorial descreve o procedimento completo de configuração do **MasterTool IEC XE**, a instalação do descritor **GSDML**, a montagem da árvore de dispositivos PROFINET e o código em **Texto Estruturado (ST)** para detecção e contagem de peças vermelhas.
 
 ---
 
-## 🚀 Passo 1: Instalação do Arquivo GSDML no Repositório de Dispositivos
+## 📌 1. Instalação do Arquivo GSDML no Repositório do MasterTool
 
 1. No MasterTool IEC XE, acesse o menu superior: **Ferramentas (Tools)** $\rightarrow$ **Repositório de Dispositivos... (Device Repository)**.
-2. Na janela que abrir, certifique-se de que a localização esteja em **User Repository** ou **System Repository**.
-3. Clique no botão **Instalar... (Install...)**.
-4. Navegue até a pasta onde salvou o arquivo `GSDML-V2.31-DAMATTA-VisionDevice-20260814.xml` (ou `GSDML-V2.3-DAMATTA-VisionDevice-20260814.xml`).
-5. Clique em **Abrir**. O dispositivo **Raspberry Pi Vision DAP** aparecerá sob a categoria **Fieldbusses / PROFINET IO / I/O / DAMATTA**.
-6. Clique em **Fechar**.
+2. Clique em **Instalar...**.
+3. Selecione o arquivo: **`GSDML-V2.31-DAMATTA-VisionDevice-20260814.xml`** (disponível na pasta `gsdml/`).
+4. O dispositivo **Raspberry Pi Vision DAP** será registrado sob a categoria **Fieldbusses / PROFINET IO / I/O / DAMATTA**.
 
 ---
 
-## 🌐 Passo 2: Configuração da Interface Ethernet e do PROFINET Controller no Projeto
+## 🌳 2. Montagem da Árvore de Comunicação PROFINET
 
-1. Na árvore de dispositivos (lado esquerdo), clique com o botão direito no nó **Device (NX325)** e selecione **Adicionar Dispositivo... (Add Device...)**.
-2. Expanda **Ethernet Adapter** $\rightarrow$ selecione **Ethernet** e clique em **Adicionar Dispositivo**.
-3. Dobre o clique no item **Ethernet** adicionado na árvore.
-4. Na aba **Configurações de Ethernet**, clique no botão **Navegar...** e selecione a interface de rede física (ex: `eth0` ou a placa de rede do CLP/PC).
-5. Clique com o botão direito no nó **Ethernet** na árvore $\rightarrow$ **Adicionar Dispositivo...**.
-6. Selecione **PROFINET IO Master / Controller** $\rightarrow$ **PROFINET Controller** e clique em **Adicionar Dispositivo**.
+No MasterTool, monte a estrutura de dispositivos seguindo a hierarquia abaixo:
 
----
+```text
+Configuration (Config)
+  └── XP325 / NX325 (CPU)
+        └── NET 1 (Interface Ethernet Física)
+              └── Ethernet (Adaptador Ethernet)
+                    └── PN_Controller (PROFINET Controller)
+                          └── Raspberry_Pi_Vision_DAP (IO-Device)
+                                ├── Slot 1: Vision Inputs 20B
+                                └── Slot 2: Vision Outputs 6B
+```
 
-## 📷 Passo 3: Adição do Dispositivo de Visão (Raspberry Pi) ao PROFINET Controller
-
-1. Na árvore do projeto, clique com o botão direito sobre o **PROFINET Controller** recém-criado $\rightarrow$ **Adicionar Dispositivo...**.
-2. Na janela de busca de dispositivos, navegue até:
-   **PROFINET IO** $\rightarrow$ **I/O** $\rightarrow$ **DAMATTA** $\rightarrow$ **Raspberry Pi Vision DAP**.
-3. Clique em **Adicionar Dispositivo**.
-
----
-
-## 📦 Passo 4: Inserção dos Módulos de Entrada (20 Bytes) e Saída (6 Bytes)
-
-1. Expanda o dispositivo **Raspberry Pi Vision DAP** na árvore do projeto.
-2. Dobre o clique no dispositivo para abrir a configuração de Slots.
-3. No **Slot 1**: Clique com o botão direito ou selecione na lista o módulo **`Vision Inputs 20B`** (20 Bytes In).
-4. No **Slot 2**: Clique com o botão direito ou selecione na lista o módulo **`Vision Outputs 6B`** (6 Bytes Out).
+### Passo a Passo dos Cliques:
+1. Clique com o botão direito na porta física **`NET 1`** $\rightarrow$ **Adicionar Dispositivo...** $\rightarrow$ selecione **Adaptador Ethernet / Ethernet**.
+2. Clique com o botão direito no nó **`Ethernet`** recém-criado $\rightarrow$ **Adicionar Dispositivo...** $\rightarrow$ selecione **PROFINET Controller**.
+3. Clique com o botão direito no **`PN_Controller`** $\rightarrow$ **Adicionar Dispositivo...** $\rightarrow$ expanda **DAMATTA** $\rightarrow$ selecione **`Raspberry Pi Vision DAP`**.
+4. Clique com o botão direito em **`Raspberry_Pi_Vision_DAP`** $\rightarrow$ **Adicionar Dispositivo...**:
+   - Adicione o módulo **`Vision Inputs 20B`** no Slot 1.
+   - Adicione o módulo **`Vision Outputs 6B`** no Slot 2.
 
 ---
 
-## 🔗 Passo 5: Mapeamento de Variáveis E/S (PROFINET I/O Mapping)
+## 🌐 3. Configuração de IP e Nome da Estação PROFINET
 
-Na aba **Mapeamento de E/S PROFINET** de cada módulo, vincule os canais de hardware às variáveis globais da sua aplicação:
+Dê um duplo clique no nó **`Raspberry_Pi_Vision_DAP`**:
+- **Nome da estação (Station Name):** `rpi-vision-device`
+- **Endereço IP:** `192.168.0.231` (ou o IP do Raspberry Pi na sua rede)
+- **Máscara de sub-rede:** `255.255.255.0`
 
-### Entradas (Módulo 20 Bytes In - Slot 1):
-| Endereço Byte | Tipo de Dado | Nome da Variável no PLC | Descrição |
+---
+
+## 📊 4. Mapeamento de Variáveis E/S (PNIO I/O Mapping)
+
+Dê um duplo clique no módulo **`Vision_Inputs_20B`** (Slot 1) $\rightarrow$ aba **PNIO Module I/O Mapping**:
+
+| Endereço Byte | Tipo de Dado | Canal | Descrição |
 | :--- | :--- | :--- | :--- |
-| `%IW0` | `UINT` | `g_StatusFlags` | Flags (Bit 0: OK, Bit 1: Error, Bit 5: Trigger Ack) |
-| `%IW2` | `UINT` | `g_ClassID` | Classe identificada (ex: 1 = Peça A, 2 = Peça B) |
-| `%IW4` | `UINT` | `g_ObjectCount` | Contagem total de objetos inspecionados |
-| `%ID6` | `REAL` | `g_PosX_mm` | Posição X em milímetros na esteira |
-| `%ID10` | `REAL` | `g_PosY_mm` | Posição Y em milímetros na esteira |
-| `%ID14` | `REAL` | `g_Angle_deg` | Ângulo de rotação da peça em graus |
-| `%IW18` | `UINT` | `g_ActiveRecipe` | ID da receita ativa no Raspberry Pi |
+| `%IW0` | `UINT` | `Status Flags` | Bit 0: Ready, Bit 1: Error, Bit 5: Trigger Ack |
+| `%IW2` | `UINT` | `Class ID` | ID da Classe (1 = Peça Vermelha, 2 = Verde, 3 = Azul) |
+| `%IW4` | `UINT` | `Object Count` | Quantidade de objetos contados na foto |
+| `%ID6` | `REAL` | `Pos X mm` | Posição X em milímetros |
+| `%ID10` | `REAL` | `Pos Y mm` | Posição Y em milímetros |
+| `%ID14` | `REAL` | `Angle Deg` | Ângulo da peça em graus |
+| `%IW18` | `UINT` | `Active Recipe` | ID da Receita Ativa |
 
-### Saídas (Módulo 6 Bytes Out - Slot 2):
-| Endereço Byte | Tipo de Dado | Nome da Variável no PLC | Descrição |
+Dê um duplo clique no módulo **`Vision_Outputs_6B`** (Slot 2) $\rightarrow$ aba **PNIO Module I/O Mapping**:
+
+| Endereço Byte | Tipo de Dado | Canal | Descrição |
 | :--- | :--- | :--- | :--- |
-| `%QB0` | `BYTE` | `g_TriggerCmd` | Comando de disparo de foto (Pulso Bit 0) |
-| `%QB1` | `BYTE` | `g_RecipeCmd` | Troca de receita enviada pelo PLC |
-| `%QB2` | `BYTE` | `g_ModeCmd` | Modo de operação (0: Contínuo, 1: Trigger) |
-| `%QB3` | `BYTE` | `g_ResetFault` | Reset de falha da visão |
-| `%QW4` | `WORD` | `g_Reserved` | Reservado para expansão futura |
+| `%QB0` | `USINT` | `Trigger Cmd` | Comando para disparar foto (1 = Disparar) |
+| `%QB1` | `USINT` | `Recipe Cmd` | Comando de seleção de receita |
+| `%QB2` | `USINT` | `Mode Cmd` | Modo de operação (0 = Automático, 1 = Calibração) |
+| `%QB3` | `USINT` | `Reset Fault` | Reset de alarmes da visão |
 
 ---
 
-## 🧪 Passo 6: Compilação, Login e Testes (Forçamento via Ctrl+F7)
+## 💻 5. Programa em Texto Estruturado (ST) - Contagem de Peças Vermelhas
 
-1. Pressione **F11** para compilar o projeto (*Build*). Certifique-se de que não haja erros de compilação.
-2. Conecte ao CLP clicando em **Online** $\rightarrow$ **Login** ($\text{Alt}+\text{F8}$).
-3. Coloque o CLP em modo de execução ($\text{F5}$ - *Start*).
-4. Para testar o disparo de foto via **Forçamento de Valores**:
-   - Na lista de variáveis ou no programa em LADDER/ST, mude o valor preparado de `g_TriggerCmd` para `1`.
-   - Pressione **Ctrl + F7** para escrever/forçar o valor no CLP.
-   - Observe o pulso em `g_StatusFlags` (Bit 5: Trigger Ack) confirmando que a foto foi processada!
+Copie o código abaixo e cole no seu programa **`UserPrg (PRG)`**:
+
+### Bloco de Variáveis (`VAR`):
+```iecst
+PROGRAM UserPrg
+VAR
+    (* --- ENTRADAS DA VISÃO PROFINET --- *)
+    g_StatusFlags       : UINT;     (* Status Flags *)
+    g_ClassID           : UINT;     (* ID da Classe: 1 = Vermelha, 2 = Verde, 3 = Azul *)
+    g_ObjectCount       : UINT;     (* Peças encontradas na foto atual *)
+    g_PosX_mm           : REAL;     (* Posição X (mm) *)
+    g_PosY_mm           : REAL;     (* Posição Y (mm) *)
+    g_Angle_deg         : REAL;     (* Ângulo de rotação (°) *)
+    g_ActiveRecipe      : UINT;     (* Receita Ativa *)
+
+    (* --- SAÍDAS DA VISÃO PROFINET --- *)
+    g_TriggerCmd        : BYTE;     (* Comando de Disparo *)
+    g_RecipeCmd         : BYTE;     (* Comando de Receita *)
+    g_ResetFault        : BYTE;     (* Reset de Falha *)
+
+    (* --- CONTROLES DA OPERAÇÃO --- *)
+    bStartInspection    : BOOL := FALSE; (* Mude para TRUE para tirar uma foto *)
+    bResetRedCounter    : BOOL := FALSE; (* Mude para TRUE para ZERAR a contagem de vermelhas *)
+    bResetFaultCmd      : BOOL := FALSE; (* Reset de falha *)
+    nRecipeToSelect     : BYTE := 1;     (* Número da Receita *)
+
+    (* --- RESULTADOS DA CONTAGEM DE PEÇAS VERMELHAS --- *)
+    nRedPartsCount      : UDINT := 0;    (* CONTADOR TOTAL ACUMULADO DE PEÇAS VERMELHAS *)
+    nRedPartsInFrame    : UINT := 0;     (* Peças Vermelhas na última foto *)
+    bIsRedPart          : BOOL := FALSE; (* TRUE quando a peça for Vermelha (Class 1) *)
+
+    (* --- BITS DE STATUS E MEMÓRIA --- *)
+    bSystemOK           : BOOL;
+    bInspectionError    : BOOL;
+    bTriggerAck         : BOOL;
+    bTriggerAckOld      : BOOL := FALSE; (* Memória para detectar a foto concluída *)
+END_VAR
+```
+
+### Bloco de Código ST:
+```iecst
+(* ========================================================================= *)
+(*    PROGRAMA: CONTADOR DE PEÇAS VERMELHAS VIA VISÃO PROFINET (ST)         *)
+(* ========================================================================= *)
+
+(* 1. DECODIFICAÇÃO DAS FLAGS DE STATUS *)
+bSystemOK        := (g_StatusFlags AND 16#0001) <> 0; (* Bit 0 *)
+bInspectionError := (g_StatusFlags AND 16#0002) <> 0; (* Bit 1 *)
+bTriggerAck      := (g_StatusFlags AND 16#0020) <> 0; (* Bit 5 *)
+
+(* 2. IDENTIFICAÇÃO DA CLASSE (Classe 1 = Peça Vermelha) *)
+bIsRedPart := (g_ClassID = 1);
+
+(* 3. CONTAGEM ACUMULADA NA CONCLUSÃO DA FOTO (BORDA DE SUBIDA DO TRIGGER ACK) *)
+IF bTriggerAck AND NOT bTriggerAckOld THEN
+    (* A foto foi processada com sucesso *)
+    IF bIsRedPart THEN
+        nRedPartsInFrame := g_ObjectCount;
+        nRedPartsCount   := nRedPartsCount + nRedPartsInFrame; (* Soma ao contador total *)
+    ELSE
+        nRedPartsInFrame := 0;
+    END_IF
+END_IF
+bTriggerAckOld := bTriggerAck; (* Salva estado da borda *)
+
+(* 4. ZERAR O CONTADOR DE VERMELHAS (BOTÃO RESET DO OPERADOR) *)
+IF bResetRedCounter THEN
+    nRedPartsCount   := 0;
+    nRedPartsInFrame := 0;
+    bResetRedCounter := FALSE;
+END_IF
+
+(* 5. SELEÇÃO DE RECEITA E DISPARO DE FOTO (HANDSHAKE) *)
+g_RecipeCmd := nRecipeToSelect;
+
+IF bStartInspection THEN
+    g_TriggerCmd := 1; (* Envia o pulso de disparo *)
+    
+    IF bTriggerAck THEN
+        g_TriggerCmd := 0;
+        bStartInspection := FALSE; (* Finaliza o ciclo de disparo *)
+    END_IF
+ELSE
+    g_TriggerCmd := 0;
+END_IF
+
+(* 6. RESET DE FALHA DA VISÃO *)
+IF bResetFaultCmd THEN
+    g_ResetFault := 1;
+    bResetFaultCmd := FALSE;
+ELSE
+    g_ResetFault := 0;
+END_IF
+```
+
+---
+
+## 🧪 6. Testes em Modo Simulação vs CLP Físico
+
+- **Modo Simulação (PC):**
+  - No modo Simulação do MasterTool, o programa em Texto Estruturado roda na memória do PC. O aviso `⚠️ The bus is not running` é normal pois o computador não envia pacotes de rede física.
+  - Para testar na simulação, altere `bStartInspection` para `TRUE` e force valores em `g_ClassID`, `g_ObjectCount` e `g_StatusFlags` com **Ctrl + F7**.
+
+- **Modo Real (CLP Físico + Raspberry Pi):**
+  - Conecte o cabo Ethernet entre o CLP e o Raspberry Pi (`192.168.0.231`).
+  - Desmarque o modo Simulação, faça o **Login** (**Alt + F8**) e **Start** (**F5**).
+  - O aviso sumirá, a luz do PROFINET ficará verde e a contagem ocorrerá em tempo real a cada disparo! 📷✨
