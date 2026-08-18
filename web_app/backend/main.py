@@ -20,12 +20,11 @@ from pydantic import BaseModel
 # Adicionar diretório pai ao sys.path para importar vision_worker e shm_bridge
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "vision_engine")))
 
-from shm_bridge import SHMBridge
 from vision_worker import VisionWorker
 
 logger = logging.getLogger("WebBackend")
 
-app = FastAPI(title="PROFINET Vision System RPi", version="2.1.0")
+app = FastAPI(title="PROFINET Vision System RPi", version="2.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,9 +34,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instâncias dos serviços
+# Instância única do motor de visão (contém a ponte SHM interna)
 vision_worker = VisionWorker(camera_id=0)
-shm_bridge = SHMBridge(create_if_missing=True)
 
 # Diretórios estáticos e arquivos de configuração
 STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
@@ -105,9 +103,10 @@ async def video_feed():
 
 @app.get("/api/status")
 async def get_system_status():
-    """Retorna o estado das variáveis da Memória Compartilhada (SHM) e PROFINET."""
-    outputs = shm_bridge.get_outputs()
-    inputs = shm_bridge.struct_ptr.inputs
+    """Retorna o estado das variáveis da Memória Compartilhada (SHM) e PROFINET diretamente do VisionWorker."""
+    shm = vision_worker.shm
+    outputs = shm.get_outputs()
+    inputs = shm.struct_ptr.inputs
 
     return {
         "inputs_profinet": {
@@ -120,7 +119,7 @@ async def get_system_status():
             "active_recipe": inputs.active_recipe,
         },
         "outputs_profinet": outputs,
-        "heartbeat": shm_bridge.struct_ptr.heartbeat_counter,
+        "heartbeat": shm.struct_ptr.heartbeat_counter,
         "calibration": {
             "px_per_mm": vision_worker.calibration.px_per_mm_scale
         }
