@@ -33,8 +33,9 @@ sudo pkill -f "profinet_app" || true
 sudo pkill -f "vision_worker.py" || true
 sleep 1
 
-echo "[4/6] Limpando cache de bytecode do Python..."
+echo "[4/6] Limpando cache de bytecode do Python e CMake..."
 find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+rm -rf profinet_app/build
 
 echo "[5/6] Compilando Daemon PROFINET C (profinet_app)..."
 mkdir -p profinet_app/build
