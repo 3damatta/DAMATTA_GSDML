@@ -12,15 +12,55 @@ document.addEventListener("DOMContentLoaded", () => {
             tabPanes.forEach(p => p.classList.remove("active"));
 
             btn.classList.add("active");
-            document.getElementById(targetTab).classList.add("active");
+            document.getElementById(targetTab)?.classList.add("active");
         });
     });
+
+    // Função auxiliar para exibir Notificações Toast no topo da tela
+    function showNotification(message, type = "success") {
+        let toast = document.getElementById("system-toast");
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.id = "system-toast";
+            toast.style.position = "fixed";
+            toast.style.top = "20px";
+            toast.style.right = "20px";
+            toast.style.zIndex = "9999";
+            toast.style.padding = "12px 20px";
+            toast.style.borderRadius = "8px";
+            toast.style.fontWeight = "600";
+            toast.style.fontSize = "14px";
+            toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4)";
+            toast.style.transition = "all 0.3s ease";
+            document.body.appendChild(toast);
+        }
+
+        if (type === "error") {
+            toast.style.backgroundColor = "#ef4444";
+            toast.style.color = "#ffffff";
+        } else if (type === "warning") {
+            toast.style.backgroundColor = "#f59e0b";
+            toast.style.color = "#000000";
+        } else {
+            toast.style.backgroundColor = "#10b981";
+            toast.style.color = "#ffffff";
+        }
+
+        toast.textContent = message;
+        toast.style.opacity = "1";
+        toast.style.transform = "translateY(0)";
+
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateY(-10px)";
+        }, 3500);
+    }
 
     // =========================================================================
     // ELEMENTOS DA DOM DA ABA 1 (VISÃO E CALIBRAÇÃO)
     // =========================================================================
     const canvas = document.getElementById("roi-canvas");
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas ? canvas.getContext("2d") : null;
 
     const recipeSelect = document.getElementById("recipe-select");
     const recipeNameInput = document.getElementById("recipe-name");
@@ -76,22 +116,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Atualização de Rótulos dos Sliders HSV
     function updateSliderLabels() {
-        valHMin.textContent = hMinSlider.value;
-        valHMax.textContent = hMaxSlider.value;
-        valSMin.textContent = sMinSlider.value;
-        valSMax.textContent = sMaxSlider.value;
-        valVMin.textContent = vMinSlider.value;
-        valVMax.textContent = vMaxSlider.value;
+        if (valHMin && hMinSlider) valHMin.textContent = hMinSlider.value;
+        if (valHMax && hMaxSlider) valHMax.textContent = hMaxSlider.value;
+        if (valSMin && sMinSlider) valSMin.textContent = sMinSlider.value;
+        if (valSMax && sMaxSlider) valSMax.textContent = sMaxSlider.value;
+        if (valVMin && vMinSlider) valVMin.textContent = vMinSlider.value;
+        if (valVMax && vMaxSlider) valVMax.textContent = vMaxSlider.value;
     }
 
     [hMinSlider, hMaxSlider, sMinSlider, sMaxSlider, vMinSlider, vMaxSlider].forEach(s => {
-        s.addEventListener("input", updateSliderLabels);
+        s?.addEventListener("input", updateSliderLabels);
     });
 
     // =========================================================================
     // DESENHO E INTERAÇÃO NO CANVAS
     // =========================================================================
     function drawCanvasOverlay() {
+        if (!ctx || !canvas) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Desenhar Retângulo de ROI
@@ -139,40 +180,41 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.font = "bold 13px Inter, sans-serif";
             ctx.fillText(`${distPx} px`, midX + 10, midY);
 
-            inputPxDist.value = distPx;
+            if (inputPxDist) inputPxDist.value = distPx;
         }
     }
 
     // Mudança de Ferramenta
-    btnDrawRoi.addEventListener("click", () => {
+    btnDrawRoi?.addEventListener("click", () => {
         canvasMode = "roi";
         btnDrawRoi.classList.add("active");
-        btnCalibrateLine.classList.remove("active");
-        canvasHint.textContent = "Clique e arraste sobre o vídeo para desenhar a Região de Interesse (ROI).";
+        btnCalibrateLine?.classList.remove("active");
+        if (canvasHint) canvasHint.textContent = "Clique e arraste sobre o vídeo para desenhar a Região de Interesse (ROI).";
     });
 
-    btnCalibrateLine.addEventListener("click", () => {
+    btnCalibrateLine?.addEventListener("click", () => {
         canvasMode = "calibrate";
         btnCalibrateLine.classList.add("active");
-        btnDrawRoi.classList.remove("active");
-        canvasHint.textContent = "Clique e arraste sobre uma régua/peça no vídeo para medir a distância em pixels.";
+        btnDrawRoi?.classList.remove("active");
+        if (canvasHint) canvasHint.textContent = "Clique e arraste sobre uma régua/peça no vídeo para medir a distância em pixels.";
     });
 
-    btnFullRoi.addEventListener("click", () => {
+    btnFullRoi?.addEventListener("click", () => {
         currentRoi = [0, 0, 640, 480];
         updateRoiInputFields();
         drawCanvasOverlay();
+        showNotification("ROI redefinida para tela cheia (640x480).");
     });
 
     function updateRoiInputFields() {
-        roiXInput.value = currentRoi[0];
-        roiYInput.value = currentRoi[1];
-        roiWInput.value = currentRoi[2];
-        roiHInput.value = currentRoi[3];
+        if (roiXInput) roiXInput.value = currentRoi[0];
+        if (roiYInput) roiYInput.value = currentRoi[1];
+        if (roiWInput) roiWInput.value = currentRoi[2];
+        if (roiHInput) roiHInput.value = currentRoi[3];
     }
 
     [roiXInput, roiYInput, roiWInput, roiHInput].forEach(inp => {
-        inp.addEventListener("change", () => {
+        inp?.addEventListener("change", () => {
             currentRoi = [
                 parseInt(roiXInput.value) || 0,
                 parseInt(roiYInput.value) || 0,
@@ -184,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Eventos de Mouse no Canvas
-    canvas.addEventListener("mousedown", (e) => {
+    canvas?.addEventListener("mousedown", (e) => {
         const rect = canvas.getBoundingClientRect();
         startX = e.clientX - rect.left;
         startY = e.clientY - rect.top;
@@ -195,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    canvas.addEventListener("mousemove", (e) => {
+    canvas?.addEventListener("mousemove", (e) => {
         if (!isDrawing) return;
         const rect = canvas.getBoundingClientRect();
         const currX = e.clientX - rect.left;
@@ -209,14 +251,16 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRoi = [Math.round(x), Math.round(y), Math.round(w), Math.round(h)];
             updateRoiInputFields();
         } else if (canvasMode === "calibrate") {
-            calibratePts.x2 = currX;
-            calibratePts.y2 = currY;
+            if (calibratePts) {
+                calibratePts.x2 = currX;
+                calibratePts.y2 = currY;
+            }
         }
 
         drawCanvasOverlay();
     });
 
-    canvas.addEventListener("mouseup", () => {
+    canvas?.addEventListener("mouseup", () => {
         isDrawing = false;
     });
 
@@ -232,16 +276,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const presetKey = btn.getAttribute("data-preset");
             if (presets[presetKey]) {
                 const p = presets[presetKey];
-                hMinSlider.value = p.hsv_min[0];
-                sMinSlider.value = p.hsv_min[1];
-                vMinSlider.value = p.hsv_min[2];
+                if (hMinSlider) hMinSlider.value = p.hsv_min[0];
+                if (sMinSlider) sMinSlider.value = p.hsv_min[1];
+                if (vMinSlider) vMinSlider.value = p.hsv_min[2];
 
-                hMaxSlider.value = p.hsv_max[0];
-                sMaxSlider.value = p.hsv_max[1];
-                vMaxSlider.value = p.hsv_max[2];
+                if (hMaxSlider) hMaxSlider.value = p.hsv_max[0];
+                if (sMaxSlider) sMaxSlider.value = p.hsv_max[1];
+                if (vMaxSlider) vMaxSlider.value = p.hsv_max[2];
 
-                recipeClassSelect.value = p.class_id;
+                if (recipeClassSelect) recipeClassSelect.value = p.class_id;
                 updateSliderLabels();
+                showNotification(`Preset de cor aplicado: ${presetKey.toUpperCase()}`);
             }
         });
     });
@@ -253,17 +298,19 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/recipes");
             const recipes = await res.json();
-            recipeSelect.innerHTML = "";
+            if (recipeSelect) {
+                recipeSelect.innerHTML = "";
 
-            for (const [id, r] of Object.entries(recipes)) {
-                const opt = document.createElement("option");
-                opt.value = id;
-                opt.textContent = `#${id} - ${r.name}`;
-                recipeSelect.appendChild(opt);
-            }
+                for (const [id, r] of Object.entries(recipes)) {
+                    const opt = document.createElement("option");
+                    opt.value = id;
+                    opt.textContent = `#${id} - ${r.name}`;
+                    recipeSelect.appendChild(opt);
+                }
 
-            if (Object.keys(recipes).length > 0) {
-                populateRecipeForm(recipes[Object.keys(recipes)[0]]);
+                if (Object.keys(recipes).length > 0) {
+                    populateRecipeForm(recipes[Object.keys(recipes)[0]]);
+                }
             }
         } catch (err) {
             console.error("Erro ao carregar receitas:", err);
@@ -271,22 +318,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function populateRecipeForm(recipe) {
-        recipeNameInput.value = recipe.name || "";
-        recipeDescInput.value = recipe.description || "";
-        recipeClassSelect.value = recipe.class_id || 1;
+        if (recipeNameInput) recipeNameInput.value = recipe.name || "";
+        if (recipeDescInput) recipeDescInput.value = recipe.description || "";
+        if (recipeClassSelect) recipeClassSelect.value = recipe.class_id || 1;
 
-        hMinSlider.value = recipe.hsv_min ? recipe.hsv_min[0] : 0;
-        sMinSlider.value = recipe.hsv_min ? recipe.hsv_min[1] : 100;
-        vMinSlider.value = recipe.hsv_min ? recipe.hsv_min[2] : 100;
+        if (hMinSlider) hMinSlider.value = recipe.hsv_min ? recipe.hsv_min[0] : 0;
+        if (sMinSlider) sMinSlider.value = recipe.hsv_min ? recipe.hsv_min[1] : 100;
+        if (vMinSlider) vMinSlider.value = recipe.hsv_min ? recipe.hsv_min[2] : 100;
 
-        hMaxSlider.value = recipe.hsv_max ? recipe.hsv_max[0] : 10;
-        sMaxSlider.value = recipe.hsv_max ? recipe.hsv_max[1] : 255;
-        vMaxSlider.value = recipe.hsv_max ? recipe.hsv_max[2] : 255;
+        if (hMaxSlider) hMaxSlider.value = recipe.hsv_max ? recipe.hsv_max[0] : 10;
+        if (sMaxSlider) sMaxSlider.value = recipe.hsv_max ? recipe.hsv_max[1] : 255;
+        if (vMaxSlider) vMaxSlider.value = recipe.hsv_max ? recipe.hsv_max[2] : 255;
 
-        recipeMinAreaInput.value = recipe.min_area || 200;
-        recipeMaxAreaInput.value = recipe.max_area || 100000;
-        minCountInput.value = recipe.min_count !== undefined ? recipe.min_count : 1;
-        maxCountInput.value = recipe.max_count !== undefined ? recipe.max_count : 50;
+        if (recipeMinAreaInput) recipeMinAreaInput.value = recipe.min_area || 200;
+        if (recipeMaxAreaInput) recipeMaxAreaInput.value = recipe.max_area || 100000;
+        if (minCountInput) minCountInput.value = recipe.min_count !== undefined ? recipe.min_count : 1;
+        if (maxCountInput) maxCountInput.value = recipe.max_count !== undefined ? recipe.max_count : 50;
 
         if (recipe.roi && recipe.roi.length === 4) {
             currentRoi = recipe.roi;
@@ -296,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateSliderLabels();
     }
 
-    recipeSelect.addEventListener("change", async (e) => {
+    recipeSelect?.addEventListener("change", async (e) => {
         const id = e.target.value;
         const res = await fetch("/api/recipes");
         const recipes = await res.json();
@@ -305,7 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    btnNewRecipe.addEventListener("click", async () => {
+    btnNewRecipe?.addEventListener("click", async () => {
         const res = await fetch("/api/recipes");
         const recipes = await res.json();
         const nextId = (Object.keys(recipes).length + 1).toString();
@@ -326,87 +373,99 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         populateRecipeForm(newRec);
-        const opt = document.createElement("option");
-        opt.value = nextId;
-        opt.textContent = `#${nextId} - ${newRec.name}`;
-        recipeSelect.appendChild(opt);
-        recipeSelect.value = nextId;
+        if (recipeSelect) {
+            const opt = document.createElement("option");
+            opt.value = nextId;
+            opt.textContent = `#${nextId} - ${newRec.name}`;
+            recipeSelect.appendChild(opt);
+            recipeSelect.value = nextId;
+        }
+        showNotification(`Nova Receita #${nextId} criada. Preencha e clique em Salvar.`);
     });
 
-    btnSaveRecipe.addEventListener("click", async () => {
-        const recipeId = recipeSelect.value || "1";
+    btnSaveRecipe?.addEventListener("click", async () => {
+        const recipeId = recipeSelect?.value || "1";
         const payload = {
             id: recipeId,
-            name: recipeNameInput.value,
-            description: recipeDescInput.value,
-            class_id: parseInt(recipeClassSelect.value),
-            hsv_min: [parseInt(hMinSlider.value), parseInt(sMinSlider.value), parseInt(vMinSlider.value)],
-            hsv_max: [parseInt(hMaxSlider.value), parseInt(sMaxSlider.value), parseInt(vMaxSlider.value)],
-            min_area: parseFloat(recipeMinAreaInput.value),
-            max_area: parseFloat(recipeMaxAreaInput.value),
-            min_count: parseInt(minCountInput.value),
-            max_count: parseInt(maxCountInput.value),
+            name: recipeNameInput?.value || "Nova Receita",
+            description: recipeDescInput?.value || "",
+            class_id: parseInt(recipeClassSelect?.value || "1"),
+            hsv_min: [parseInt(hMinSlider?.value || "0"), parseInt(sMinSlider?.value || "100"), parseInt(vMinSlider?.value || "100")],
+            hsv_max: [parseInt(hMaxSlider?.value || "180"), parseInt(sMaxSlider?.value || "255"), parseInt(vMaxSlider?.value || "255")],
+            min_area: parseFloat(recipeMinAreaInput?.value || "200"),
+            max_area: parseFloat(recipeMaxAreaInput?.value || "100000"),
+            min_count: parseInt(minCountInput?.value || "1"),
+            max_count: parseInt(maxCountInput?.value || "50"),
             expected_shape: "any",
             roi: currentRoi,
         };
 
-        const res = await fetch("/api/recipes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+        try {
+            const res = await fetch("/api/recipes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-        if (res.ok) {
-            alert("Receita salva com sucesso!");
-            loadRecipes();
+            if (res.ok) {
+                showNotification(`✅ Receita #${recipeId} salva com sucesso!`);
+                loadRecipes();
+            }
+        } catch (err) {
+            showNotification(`❌ Erro ao salvar receita: ${err}`, "error");
         }
     });
 
-    btnDeleteRecipe.addEventListener("click", async () => {
-        const recipeId = recipeSelect.value;
+    btnDeleteRecipe?.addEventListener("click", async () => {
+        const recipeId = recipeSelect?.value;
         if (!recipeId) return;
         if (confirm(`Tem certeza que deseja excluir a Receita #${recipeId}?`)) {
             const res = await fetch(`/api/recipes/${recipeId}`, { method: "DELETE" });
             if (res.ok) {
-                alert("Receita excluída com sucesso!");
+                showNotification(`🗑️ Receita #${recipeId} excluída!`, "warning");
                 loadRecipes();
             }
         }
     });
 
-    btnApplyRecipe.addEventListener("click", async () => {
-        const recipeId = recipeSelect.value;
+    btnApplyRecipe?.addEventListener("click", async () => {
+        const recipeId = recipeSelect?.value;
+        if (!recipeId) return;
         const res = await fetch(`/api/recipes/select/${recipeId}`, { method: "POST" });
         if (res.ok) {
-            alert(`Receita #${recipeId} ativada no Raspberry Pi!`);
+            showNotification(`▶️ Receita #${recipeId} ativada no Raspberry Pi!`);
         }
     });
 
-    btnTestTrigger.addEventListener("click", async () => {
-        alert("Comando de disparo enviado para o motor de visão!");
+    btnTestTrigger?.addEventListener("click", async () => {
+        showNotification("📷 Comando de disparo (Trigger) enviado!");
     });
 
     // =========================================================================
     // CALIBRAÇÃO DIMENSIONAL (PIXEL -> MM)
     // =========================================================================
-    btnSaveScale.addEventListener("click", async () => {
-        const pxDist = parseFloat(inputPxDist.value);
-        const mmDist = parseFloat(inputMmDist.value);
+    btnSaveScale?.addEventListener("click", async () => {
+        const pxDist = parseFloat(inputPxDist?.value || "0");
+        const mmDist = parseFloat(inputMmDist?.value || "0");
 
         if (pxDist > 0 && mmDist > 0) {
-            const res = await fetch("/api/calibrate/distance", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pixel_distance: pxDist, real_distance_mm: mmDist })
-            });
+            try {
+                const res = await fetch("/api/calibrate/distance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pixel_distance: pxDist, real_distance_mm: mmDist })
+                });
 
-            if (res.ok) {
-                const data = await res.json();
-                alert(`Calibração efetuada! Fator de Escala: ${data.px_per_mm} px/mm`);
-                valCurrentScale.textContent = data.px_per_mm;
+                if (res.ok) {
+                    const data = await res.json();
+                    showNotification(`📐 Calibração Aplicada! Escala: ${data.px_per_mm} px/mm`);
+                    if (valCurrentScale) valCurrentScale.textContent = data.px_per_mm;
+                }
+            } catch (err) {
+                showNotification(`❌ Erro na calibração: ${err}`, "error");
             }
         } else {
-            alert("Informe valores válidos para pixels e milímetros.");
+            showNotification("Informe valores válidos para pixels e milímetros.", "warning");
         }
     });
 
@@ -417,32 +476,46 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/network");
             const data = await res.json();
-            document.getElementById("net-hostname").value = data.hostname;
-            document.getElementById("net-pn-station").value = data.profinet_station_name;
-            document.getElementById("net-ip").value = data.ip_address;
-            document.getElementById("net-mask").value = data.subnet_mask;
-            document.getElementById("net-gateway").value = data.gateway;
+            const netHostname = document.getElementById("net-hostname");
+            const netPnStation = document.getElementById("net-pn-station");
+            const netIp = document.getElementById("net-ip");
+            const netMask = document.getElementById("net-mask");
+            const netGateway = document.getElementById("net-gateway");
+
+            if (netHostname) netHostname.value = data.hostname;
+            if (netPnStation) netPnStation.value = data.profinet_station_name;
+            if (netIp) netIp.value = data.ip_address;
+            if (netMask) netMask.value = data.subnet_mask;
+            if (netGateway) netGateway.value = data.gateway;
         } catch (err) {
             console.error("Erro ao carregar configurações de rede:", err);
         }
     }
 
-    document.getElementById("btn-save-network").addEventListener("click", async () => {
+    document.getElementById("btn-save-network")?.addEventListener("click", async () => {
+        const netIp = document.getElementById("net-ip")?.value || "192.168.0.231";
+        const netMask = document.getElementById("net-mask")?.value || "255.255.255.0";
+        const netGateway = document.getElementById("net-gateway")?.value || "192.168.0.1";
+
         const payload = {
-            ip_address: document.getElementById("net-ip").value,
-            subnet_mask: document.getElementById("net-mask").value,
-            gateway: document.getElementById("net-gateway").value,
+            ip_address: netIp,
+            subnet_mask: netMask,
+            gateway: netGateway,
         };
 
-        const res = await fetch("/api/network", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+        try {
+            const res = await fetch("/api/network", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-        if (res.ok) {
-            const data = await res.json();
-            alert(data.message);
+            if (res.ok) {
+                const data = await res.json();
+                showNotification(`🌐 IP de Rede Atualizado: ${netIp}`);
+            }
+        } catch (err) {
+            showNotification(`❌ Erro ao configurar rede: ${err}`, "error");
         }
     });
 
@@ -457,17 +530,27 @@ document.addEventListener("DOMContentLoaded", () => {
             const inp = data.inputs_profinet;
             const out = data.outputs_profinet;
 
-            document.getElementById("val-status-flags").textContent = "0x" + inp.status_flags.toString(16).padStart(4, '0').toUpperCase();
-            document.getElementById("val-class-id").textContent = inp.class_id;
-            document.getElementById("val-object-count").textContent = inp.object_count;
-            document.getElementById("val-pos-x").textContent = inp.pos_x_mm.toFixed(2);
-            document.getElementById("val-pos-y").textContent = inp.pos_y_mm.toFixed(2);
-            document.getElementById("val-angle").textContent = inp.angle_deg.toFixed(2) + "°";
-            document.getElementById("val-trigger-cmd").textContent = out.trigger_cmd;
-            document.getElementById("val-active-recipe").textContent = inp.active_recipe;
-            document.getElementById("val-heartbeat").textContent = data.heartbeat;
+            const elemFlags = document.getElementById("val-status-flags");
+            const elemClass = document.getElementById("val-class-id");
+            const elemCount = document.getElementById("val-object-count");
+            const elemPosX = document.getElementById("val-pos-x");
+            const elemPosY = document.getElementById("val-pos-y");
+            const elemAngle = document.getElementById("val-angle");
+            const elemTrig = document.getElementById("val-trigger-cmd");
+            const elemRec = document.getElementById("val-active-recipe");
+            const elemHB = document.getElementById("val-heartbeat");
 
-            if (data.calibration && data.calibration.px_per_mm) {
+            if (elemFlags) elemFlags.textContent = "0x" + inp.status_flags.toString(16).padStart(4, '0').toUpperCase();
+            if (elemClass) elemClass.textContent = inp.class_id;
+            if (elemCount) elemCount.textContent = inp.object_count;
+            if (elemPosX) elemPosX.textContent = inp.pos_x_mm.toFixed(2);
+            if (elemPosY) elemPosY.textContent = inp.pos_y_mm.toFixed(2);
+            if (elemAngle) elemAngle.textContent = inp.angle_deg.toFixed(2) + "°";
+            if (elemTrig) elemTrig.textContent = out.trigger_cmd;
+            if (elemRec) elemRec.textContent = inp.active_recipe;
+            if (elemHB) elemHB.textContent = data.heartbeat;
+
+            if (data.calibration && data.calibration.px_per_mm && valCurrentScale) {
                 valCurrentScale.textContent = data.calibration.px_per_mm.toFixed(2);
             }
 
@@ -481,10 +564,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const badgeTarget = document.getElementById("badge-target");
             const badgeProfinet = document.getElementById("badge-profinet");
 
-            if (isReady) badgeReady.classList.add("active"); else badgeReady.classList.remove("active");
-            if (isPass) badgePass.classList.add("active"); else badgePass.classList.remove("active");
-            if (isTarget) badgeTarget.classList.add("active"); else badgeTarget.classList.remove("active");
-            badgeProfinet.classList.add("active");
+            if (badgeReady) { if (isReady) badgeReady.classList.add("active"); else badgeReady.classList.remove("active"); }
+            if (badgePass) { if (isPass) badgePass.classList.add("active"); else badgePass.classList.remove("active"); }
+            if (badgeTarget) { if (isTarget) badgeTarget.classList.add("active"); else badgeTarget.classList.remove("active"); }
+            if (badgeProfinet) badgeProfinet.classList.add("active");
 
         } catch (err) {
             console.error("Erro na telemetria:", err);
@@ -505,13 +588,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     const res = await fetch("/api/system/update", { method: "POST" });
                     const data = await res.json();
                     if (res.ok) {
-                        alert(`✅ Atualização Concluída!\n\n${data.message}`);
-                        location.reload();
+                        showNotification(`✅ Atualização Concluída!\n\n${data.message}`);
+                        setTimeout(() => location.reload(), 1500);
                     } else {
-                        alert(`❌ Erro ao atualizar: ${data.detail || data.message}`);
+                        showNotification(`❌ Erro ao atualizar: ${data.detail || data.message}`, "error");
                     }
                 } catch (err) {
-                    alert(`❌ Falha na conexão de atualização: ${err}`);
+                    showNotification(`❌ Falha na conexão de atualização: ${err}`, "error");
                 } finally {
                     btnGithubUpdate.textContent = "🔄 Atualizar pelo GitHub";
                     btnGithubUpdate.disabled = false;

@@ -1,6 +1,6 @@
 """
 main.py - Servidor Backend FastAPI da Interface Web HTTP
-Servidor REST, Streaming MJPEG, Diagnóstico PROFINET, Calibração de Escala, Configuração de Rede e Atualização Automática via GitHub.
+Servidor REST, Streaming MJPEG, Diagnóstico PROFINET, Calibração de Escala Persistente, Configuração de Rede Linux e Atualização Automática via GitHub.
 """
 
 import sys
@@ -24,7 +24,7 @@ from vision_worker import VisionWorker
 
 logger = logging.getLogger("WebBackend")
 
-app = FastAPI(title="PROFINET Vision System RPi", version="2.2.0")
+app = FastAPI(title="PROFINET Vision System RPi", version="2.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,12 +34,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instância única do motor de visão (contém a ponte SHM interna)
+# Instância única do motor de visão
 vision_worker = VisionWorker(camera_id=0)
 
 # Diretórios estáticos e arquivos de configuração
 STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 RECIPES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "default_recipes.json"))
+CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "system_config.json"))
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -70,9 +71,35 @@ class NetworkConfigModel(BaseModel):
     subnet_mask: str = "255.255.255.0"
     gateway: str = "192.168.0.1"
 
+def save_system_config(config_data: dict):
+    """Salva as configurações do sistema em formato JSON."""
+    try:
+        current = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                current = json.load(f)
+        current.update(config_data)
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Erro ao salvar arquivo system_config.json: {e}")
+
+def load_system_config():
+    """Carrega as configurações salvas do sistema."""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                if "px_per_mm" in cfg:
+                    vision_worker.calibration.set_scale_factor(float(cfg["px_per_mm"]))
+    except Exception as e:
+        logger.error(f"Erro ao ler system_config.json: {e}")
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("Iniciando serviço de background do motor de visão...")
+    load_system_config()
     import threading
     worker_thread = threading.Thread(target=vision_worker.run, daemon=True)
     worker_thread.start()
@@ -103,7 +130,7 @@ async def video_feed():
 
 @app.get("/api/status")
 async def get_system_status():
-    """Retorna o estado das variáveis da Memória Compartilhada (SHM) e PROFINET diretamente do VisionWorker."""
+    """Retorna o estado das variáveis da Memória Compartilhada (SHM) e PROFINET."""
     shm = vision_worker.shm
     outputs = shm.get_outputs()
     inputs = shm.struct_ptr.inputs
@@ -121,7 +148,7 @@ async def get_system_status():
         "outputs_profinet": outputs,
         "heartbeat": shm.struct_ptr.heartbeat_counter,
         "calibration": {
-            "px_per_mm": vision_worker.calibration.px_per_mm_scale
+            "px_per_mm": round(vision_worker.calibration.px_per_mm_scale, 2)
         }
     }
 
@@ -139,7 +166,7 @@ async def save_recipe(recipe: RecipeModel):
             json.dump(vision_worker.recipes, f, indent=2, ensure_ascii=False)
     except Exception as e:
         logger.error(f"Erro ao salvar arquivo de receita: {e}")
-    return {"status": "success", "recipe_id": recipe.id}
+    return {"status": "success", "recipe_id": recipe.id, "message": f"Receita #{recipe.id} salva com sucesso!"}
 
 @app.delete("/api/recipes/{recipe_id}")
 async def delete_recipe(recipe_id: str):
@@ -151,7 +178,7 @@ async def delete_recipe(recipe_id: str):
                 json.dump(vision_worker.recipes, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Erro ao atualizar receitas após exclusão: {e}")
-        return {"status": "success", "deleted_id": recipe_id}
+        return {"status": "success", "deleted_id": recipe_id, "message": f"Receita #{recipe_id} excluída."}
     raise HTTPException(status_code=404, detail="Receita não encontrada")
 
 @app.post("/api/recipes/select/{recipe_id}")
@@ -159,7 +186,7 @@ async def select_recipe(recipe_id: int):
     """Seleciona manualmente a receita ativa."""
     if str(recipe_id) in vision_worker.recipes:
         vision_worker.active_recipe_id = recipe_id
-        return {"status": "success", "active_recipe_id": recipe_id}
+        return {"status": "success", "active_recipe_id": recipe_id, "message": f"Receita #{recipe_id} ativada no Raspberry Pi!"}
     raise HTTPException(status_code=404, detail="Receita não encontrada")
 
 @app.post("/api/calibrate")
@@ -167,7 +194,8 @@ async def calibrate_scale(data: ScaleCalibrationModel):
     """Atualiza o fator de escala de calibração dimensional (px/mm)."""
     if data.px_per_mm > 0:
         vision_worker.calibration.set_scale_factor(data.px_per_mm)
-        return {"status": "success", "px_per_mm": data.px_per_mm}
+        save_system_config({"px_per_mm": data.px_per_mm})
+        return {"status": "success", "px_per_mm": data.px_per_mm, "message": f"Escala calibrada: {data.px_per_mm:.2f} px/mm"}
     raise HTTPException(status_code=400, detail="Fator de escala inválido")
 
 @app.post("/api/calibrate/distance")
@@ -176,11 +204,13 @@ async def calibrate_from_distance(data: DistanceCalibrationModel):
     if data.pixel_distance > 0 and data.real_distance_mm > 0:
         px_per_mm = data.pixel_distance / data.real_distance_mm
         vision_worker.calibration.set_scale_factor(px_per_mm)
+        save_system_config({"px_per_mm": px_per_mm})
         return {
             "status": "success",
             "pixel_distance": data.pixel_distance,
             "real_distance_mm": data.real_distance_mm,
-            "px_per_mm": round(px_per_mm, 4)
+            "px_per_mm": round(px_per_mm, 2),
+            "message": f"Calibração Concluída! Nova escala: {px_per_mm:.2f} px/mm"
         }
     raise HTTPException(status_code=400, detail="Valores de distância inválidos")
 
@@ -207,11 +237,28 @@ async def get_network_config():
 
 @app.post("/api/network")
 async def set_network_config(config: NetworkConfigModel):
-    """Salva e simula a alteração de endereço IP do Raspberry Pi."""
+    """Atualiza as configurações de IP do Raspberry Pi em /etc/dhcpcd.conf se no Linux."""
     logger.info(f"Nova configuração de rede recebida: IP={config.ip_address}, Mask={config.subnet_mask}, GW={config.gateway}")
+    
+    save_system_config({
+        "ip_address": config.ip_address,
+        "subnet_mask": config.subnet_mask,
+        "gateway": config.gateway
+    })
+
+    dhcpcd_conf = "/etc/dhcpcd.conf"
+    if os.path.exists(dhcpcd_conf) and os.access(dhcpcd_conf, os.W_OK):
+        try:
+            entry = f"\ninterface eth0\nstatic ip_address={config.ip_address}/24\nstatic routers={config.gateway}\nstatic domain_name_servers=8.8.8.8\n"
+            with open(dhcpcd_conf, "a") as f:
+                f.write(entry)
+            subprocess.run(["sudo", "ip", "addr", "add", f"{config.ip_address}/24", "dev", "eth0"], check=False)
+        except Exception as e:
+            logger.error(f"Erro ao atualizar /etc/dhcpcd.conf: {e}")
+
     return {
         "status": "success",
-        "message": f"Endereço IP atualizado para {config.ip_address}. Reiniciando interface...",
+        "message": f"Endereço IP {config.ip_address} configurado com sucesso!",
         "config": config.dict()
     }
 
@@ -242,6 +289,7 @@ async def perform_github_update():
         
         # Reload recipes from disk
         vision_worker.recipes = vision_worker._load_recipes()
+        load_system_config()
         
         return {
             "status": "success",
